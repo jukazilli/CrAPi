@@ -1,7 +1,7 @@
 import type { RegistryQuery, RegistryVerificationResponse } from '@crapi/contracts';
 
 import type { ApiPrincipal } from './api-key-auth.js';
-import { SupabaseServerClient } from './supabase-server-client.js';
+import type { SupabaseServerClient } from './supabase-server-client.js';
 
 interface QuotaRow {
   daily_limit: number;
