@@ -15,7 +15,11 @@ export const REGISTRATION_STATUSES = [
 
 export const STATUS_SEMANTICS = ['EXPLICIT', 'INFERRED', 'UNKNOWN'] as const;
 export const FRESHNESS_STATES = ['FRESH', 'AGING', 'STALE', 'UNKNOWN'] as const;
-export const ACQUISITION_MODES = ['SCHEDULED', 'ON_DEMAND', 'MANUAL'] as const;
+export const ACQUISITION_MODES = [
+  'SCHEDULED',
+  'ON_DEMAND',
+  'MANUAL',
+] as const;
 
 export type QueryResult = (typeof QUERY_RESULTS)[number];
 export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
@@ -74,7 +78,10 @@ export function normalizeRegistration(value: string): string {
 
 export function parseRegistryQuery(input: unknown): ParseRegistryQueryResult {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    return { ok: false, errors: [{ field: 'body', message: 'Expected JSON object.' }] };
+    return {
+      ok: false,
+      errors: [{ field: 'body', message: 'Expected JSON object.' }],
+    };
   }
 
   const source = input as Record<string, unknown>;
