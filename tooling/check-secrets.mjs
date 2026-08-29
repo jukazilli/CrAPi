@@ -6,14 +6,30 @@ const root = process.cwd();
 const ignoredDirs = new Set(['.git', 'node_modules', 'dist', 'coverage']);
 const ignoredFiles = new Set(['pnpm-lock.yaml']);
 const textExtensions = new Set([
-  '.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.yaml', '.yml', '.toml', '.env', '.example',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.json',
+  '.yaml',
+  '.yml',
+  '.toml',
+  '.env',
+  '.example',
 ]);
 
 const patterns = [
   { name: 'Supabase secret key', regex: /sb_secret_[A-Za-z0-9_-]{16,}/g },
   { name: 'Professional Registry live key', regex: /prk_live_[A-Za-z0-9_-]{20,}/g },
-  { name: 'Private key', regex: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g },
-  { name: 'Assigned Supabase secret', regex: /SUPABASE_(?:SECRET|SERVICE_ROLE)_KEY\s*=\s*[^\s#<][^\n]*/g },
+  {
+    name: 'Private key',
+    regex: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g,
+  },
+  {
+    name: 'Assigned Supabase secret',
+    regex: /SUPABASE_(?:SECRET|SERVICE_ROLE)_KEY\s*=\s*[^\s#<][^\n]*/g,
+  },
 ];
 
 const findings = [];
