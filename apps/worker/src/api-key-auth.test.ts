@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { generateApiKey } from '@crapi/security';
 
-import { authenticateApiRequest, type ApiKeyRepository } from './api-key-auth.js';
+import {
+  authenticateApiRequest,
+  type ApiKeyRepository,
+} from './api-key-auth.js';
 
 const pepper = '0123456789abcdef0123456789abcdef';
 
@@ -29,9 +32,12 @@ async function fixture(scopes: readonly string[] = ['registry:verify']) {
 describe('API key authentication', () => {
   it('authenticates a valid key with the required scope', async () => {
     const { key, repository } = await fixture();
-    const request = new Request('https://crapi.test/v1/professional-registrations/verify', {
-      headers: { authorization: `Bearer ${key.rawKey}` },
-    });
+    const request = new Request(
+      'https://crapi.test/v1/professional-registrations/verify',
+      {
+        headers: { authorization: `Bearer ${key.rawKey}` },
+      },
+    );
 
     const result = await authenticateApiRequest(
       request,
@@ -44,9 +50,12 @@ describe('API key authentication', () => {
 
   it('rejects a malformed or unknown bearer without leaking details', async () => {
     const { repository } = await fixture();
-    const request = new Request('https://crapi.test/v1/professional-registrations/verify', {
-      headers: { authorization: 'Bearer invalid' },
-    });
+    const request = new Request(
+      'https://crapi.test/v1/professional-registrations/verify',
+      {
+        headers: { authorization: 'Bearer invalid' },
+      },
+    );
 
     await expect(
       authenticateApiRequest(request, repository, pepper, 'registry:verify'),
@@ -59,9 +68,12 @@ describe('API key authentication', () => {
 
   it('returns forbidden when a valid key lacks scope', async () => {
     const { key, repository } = await fixture([]);
-    const request = new Request('https://crapi.test/v1/professional-registrations/verify', {
-      headers: { authorization: `Bearer ${key.rawKey}` },
-    });
+    const request = new Request(
+      'https://crapi.test/v1/professional-registrations/verify',
+      {
+        headers: { authorization: `Bearer ${key.rawKey}` },
+      },
+    );
 
     await expect(
       authenticateApiRequest(request, repository, pepper, 'registry:verify'),
