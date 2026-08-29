@@ -31,6 +31,11 @@ jobs:
           path: pnpm-lock.yaml
           if-no-files-found: error
 
+      - name: Format diagnostic
+        run: |
+          pnpm format
+          git diff -- . ':!pnpm-lock.yaml'
+
       - name: Quality gates
         run: pnpm check:ci
 
