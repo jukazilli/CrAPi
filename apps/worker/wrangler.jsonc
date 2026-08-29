@@ -5,6 +5,6 @@
   "workers_dev": true,
   "preview_urls": true,
   "vars": {
-    "APP_ENV": "staging"
-  }
+    "APP_ENV": "staging",
+  },
 }
