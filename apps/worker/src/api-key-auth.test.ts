@@ -33,7 +33,12 @@ describe('API key authentication', () => {
       headers: { authorization: `Bearer ${key.rawKey}` },
     });
 
-    const result = await authenticateApiRequest(request, repository, pepper, 'registry:verify');
+    const result = await authenticateApiRequest(
+      request,
+      repository,
+      pepper,
+      'registry:verify',
+    );
     expect(result.ok).toBe(true);
   });
 
@@ -43,7 +48,9 @@ describe('API key authentication', () => {
       headers: { authorization: 'Bearer invalid' },
     });
 
-    await expect(authenticateApiRequest(request, repository, pepper, 'registry:verify')).resolves.toEqual({
+    await expect(
+      authenticateApiRequest(request, repository, pepper, 'registry:verify'),
+    ).resolves.toEqual({
       ok: false,
       status: 401,
       code: 'UNAUTHORIZED',
@@ -56,7 +63,9 @@ describe('API key authentication', () => {
       headers: { authorization: `Bearer ${key.rawKey}` },
     });
 
-    await expect(authenticateApiRequest(request, repository, pepper, 'registry:verify')).resolves.toEqual({
+    await expect(
+      authenticateApiRequest(request, repository, pepper, 'registry:verify'),
+    ).resolves.toEqual({
       ok: false,
       status: 403,
       code: 'FORBIDDEN',
