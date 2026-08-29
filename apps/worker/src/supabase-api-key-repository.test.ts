@@ -51,11 +51,7 @@ describe('SupabaseApiKeyRepository', () => {
 
   it('returns null when the RPC returns no matching key', async () => {
     const fetcher = vi.fn(async () => new Response('[]', { status: 200 }));
-    const repository = new SupabaseApiKeyRepository(
-      'https://example.supabase.co',
-      secret,
-      fetcher,
-    );
+    const repository = new SupabaseApiKeyRepository('https://example.supabase.co', secret, fetcher);
 
     await expect(repository.findByPrefix('prk_test_0123456789abcdef')).resolves.toBeNull();
   });

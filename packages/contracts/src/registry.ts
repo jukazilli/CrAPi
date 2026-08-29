@@ -1,9 +1,4 @@
-export const QUERY_RESULTS = [
-  'FOUND',
-  'NOT_FOUND',
-  'INCONCLUSIVE',
-  'SOURCE_UNAVAILABLE',
-] as const;
+export const QUERY_RESULTS = ['FOUND', 'NOT_FOUND', 'INCONCLUSIVE', 'SOURCE_UNAVAILABLE'] as const;
 
 export const REGISTRATION_STATUSES = [
   'ACTIVE',
@@ -15,11 +10,7 @@ export const REGISTRATION_STATUSES = [
 
 export const STATUS_SEMANTICS = ['EXPLICIT', 'INFERRED', 'UNKNOWN'] as const;
 export const FRESHNESS_STATES = ['FRESH', 'AGING', 'STALE', 'UNKNOWN'] as const;
-export const ACQUISITION_MODES = [
-  'SCHEDULED',
-  'ON_DEMAND',
-  'MANUAL',
-] as const;
+export const ACQUISITION_MODES = ['SCHEDULED', 'ON_DEMAND', 'MANUAL'] as const;
 
 export type QueryResult = (typeof QUERY_RESULTS)[number];
 export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
@@ -69,15 +60,10 @@ export interface ValidationError {
 }
 
 export type ParseRegistryQueryResult =
-  | { ok: true; value: RegistryQuery }
-  | { ok: false; errors: ValidationError[] };
+  { ok: true; value: RegistryQuery } | { ok: false; errors: ValidationError[] };
 
 export function normalizeRegistration(value: string): string {
-  return value
-    .normalize('NFKC')
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, '');
+  return value.normalize('NFKC').trim().toUpperCase().replace(/\s+/g, '');
 }
 
 export function parseRegistryQuery(input: unknown): ParseRegistryQueryResult {
@@ -91,8 +77,7 @@ export function parseRegistryQuery(input: unknown): ParseRegistryQueryResult {
   const source = input as Record<string, unknown>;
   const errors: ValidationError[] = [];
 
-  const council =
-    typeof source.council === 'string' ? source.council.trim().toUpperCase() : '';
+  const council = typeof source.council === 'string' ? source.council.trim().toUpperCase() : '';
   const uf = typeof source.uf === 'string' ? source.uf.trim().toUpperCase() : '';
   const registration =
     typeof source.registration_number === 'string'
