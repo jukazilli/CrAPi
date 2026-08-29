@@ -1,0 +1,12 @@
+name = "crapi-api"
+main = "src/index.ts"
+compatibility_date = "2026-08-29"
+
+[vars]
+APP_ENV = "development"
+
+[env.staging]
+name = "crapi-api-staging"
+
+[env.production]
+name = "crapi-api-production"
