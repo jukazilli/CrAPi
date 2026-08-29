@@ -12,13 +12,22 @@ API privada e independente para normalizar e verificar registros de conselhos pr
 
 ## Estado
 
-Fundação M0 em implementação.
+Fundação M0/M1 em implementação.
 
 - documentação canônica: pronta;
 - contrato V1: criado;
-- migration inicial Supabase: criada, ainda precisa ser aplicada ao projeto conectado;
-- quality/security gates: em bootstrap;
-- deploy staging: pendente.
+- Supabase `cr-api`: conectado e saudável em `sa-east-1`;
+- migrations fundacionais: aplicadas e alinhadas ao histórico remoto;
+- 14 tabelas operacionais: criadas com RLS ativo;
+- security/performance advisors: revisados; FKs sem índice corrigidas;
+- quality/security gates: em fechamento;
+- deploy staging do Worker: pendente.
+
+## Banco
+
+O banco é exclusivo do Professional Registry. Aplicações consumidoras não acessam o Supabase diretamente.
+
+A fonte operacional é `professional_registry`; sincronizações e refreshes atualizam essa tabela e o histórico correspondente.
 
 ## Toolchain
 
