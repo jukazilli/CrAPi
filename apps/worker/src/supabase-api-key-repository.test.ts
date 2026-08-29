@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { SupabaseApiKeyRepository } from './supabase-api-key-repository.js';
 
-const secret = 'sb_secret_test_only_value_123456789';
+const secret = 'test-server-secret-value-1234567890';
 
 describe('SupabaseApiKeyRepository', () => {
   it('performs a single server-only RPC lookup and maps the record', async () => {
@@ -51,7 +51,11 @@ describe('SupabaseApiKeyRepository', () => {
 
   it('returns null when the RPC returns no matching key', async () => {
     const fetcher = vi.fn(async () => new Response('[]', { status: 200 }));
-    const repository = new SupabaseApiKeyRepository('https://example.supabase.co', secret, fetcher);
+    const repository = new SupabaseApiKeyRepository(
+      'https://example.supabase.co',
+      secret,
+      fetcher,
+    );
 
     await expect(repository.findByPrefix('prk_test_0123456789abcdef')).resolves.toBeNull();
   });
