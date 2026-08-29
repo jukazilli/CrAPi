@@ -51,14 +51,33 @@ Objetivo: integração real com primeiro consumidor, staging/production, observa
 | PR-M0-001 | Done | Documentação canônica e `AGENTS.md` versionados. |
 | PR-M0-002 | Done | Node/pnpm fixos, workspaces, lockfile congelado e toolchain reproduzível. |
 | PR-M0-003 | Done | GitHub Actions executa format, toolchain, lint, typecheck, test, build, secret scan e dependency audit com sucesso. |
-| PR-M0-004 | In Progress | Supabase staging está provisionado; Cloudflare Worker hospedado ainda precisa ser criado e provado. |
+| PR-M0-004 | In Progress | Worker, `/admin` e `wrangler.jsonc` estão prontos; publicação Cloudflare e prova hospedada ainda pendentes. |
 | PR-M0-005 | Done | Registry Contract V1 tipado, normalização e testes presentes. |
 | PR-M1-001 | Done | Schema Supabase aplicado, 14 tabelas com RLS, grants restritos e advisors revisados. |
-| PR-M1-002 | In Progress | Geração/digest de API Key implementados; lifecycle administrativo completo ainda pendente. |
-| PR-M1-003 | In Progress | Middleware + lookup Supabase server-only implementados; endpoint protegido real ainda pendente. |
-| PR-M1-004 | In Progress | Scopes fazem parte do schema/auth; integração nas rotas reais continua pendente. |
+| PR-M1-002 | In Progress | Lifecycle create/list/rotate/revoke implementado com RPCs server-only e raw key one-time; E2E hospedado pendente. |
+| PR-M1-003 | In Progress | Middleware + lookup Supabase + endpoint protegido real implementados e passando CI; E2E hospedado pendente. |
+| PR-M1-004 | In Progress | Scope `registry:verify` aplicado na rota real; validação hospedada pendente. |
+| PR-M1-005 | In Progress | Quota diária implementada para o checkpoint; reserva atômica sob concorrência será endurecida antes do beta. |
+| PR-M1-006 | In Progress | Control Plane mínimo navegável implementado em `/admin`, protegido por token separado; staging pendente. |
+| PR-M2-001 | In Progress | Slice database-first implementado: Registry Store hit retorna snapshot; miss retorna `INCONCLUSIVE` até on-demand refresh/provider. |
 
-### Evidência do gate de fundação
+### Checkpoint mínimo implementado
+
+O código já permite o seguinte fluxo quando o Worker for hospedado:
+
+1. autenticar no Control Plane de staging;
+2. criar Application;
+3. gerar API Key `TEST` e visualizar o segredo somente uma vez;
+4. autenticar `POST /v1/professional-registrations/verify` com scope `registry:verify`;
+5. aplicar quota diária;
+6. consultar `professional_registry` como fonte operacional;
+7. registrar `api_requests` e `professional_verifications`;
+8. rotacionar ou revogar a chave;
+9. registrar ações administrativas em `admin_audit_log`.
+
+O miss no Registry Store é conservador: retorna `INCONCLUSIVE`/`UNKNOWN`, nunca `INACTIVE` por inferência.
+
+### Evidência dos gates
 
 A execução hospedada da branch `foundation/m0-supabase` passou com:
 
@@ -66,13 +85,22 @@ A execução hospedada da branch `foundation/m0-supabase` passou com:
 - Prettier;
 - check de toolchain;
 - ESLint;
-- TypeScript;
+- TypeScript strict;
 - Vitest;
 - build;
 - secret scan;
 - dependency audit.
 
-O workflow voltou a `contents: read` após a normalização única realizada pelo próprio toolchain da branch.
+O workflow está em `contents: read` após as normalizações únicas realizadas pelo próprio toolchain da branch.
+
+### Banco e segurança do checkpoint
+
+- migration `m1_control_plane_and_registry_rpcs` aplicada no projeto `cr-api`;
+- funções administrativas e de lookup usam `security invoker`;
+- execução revogada de `public`, `anon` e `authenticated`;
+- execução concedida somente ao runtime privilegiado;
+- advisors de segurança permanecem apenas com INFO `RLS Enabled No Policy`, intencional no modelo deny-by-default;
+- advisors de performance permanecem apenas com INFO de índices ainda não usados na base nova.
 
 ## Regras de backlog
 
