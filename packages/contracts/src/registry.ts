@@ -73,7 +73,11 @@ export type ParseRegistryQueryResult =
   | { ok: false; errors: ValidationError[] };
 
 export function normalizeRegistration(value: string): string {
-  return value.normalize('NFKC').trim().toUpperCase().replace(/\s+/g, '');
+  return value
+    .normalize('NFKC')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '');
 }
 
 export function parseRegistryQuery(input: unknown): ParseRegistryQueryResult {
@@ -96,11 +100,17 @@ export function parseRegistryQuery(input: unknown): ParseRegistryQueryResult {
       : '';
 
   if (!/^[A-Z]{2,12}$/.test(council)) {
-    errors.push({ field: 'council', message: 'Council must contain 2-12 letters.' });
+    errors.push({
+      field: 'council',
+      message: 'Council must contain 2-12 letters.',
+    });
   }
 
   if (!/^[A-Z]{2}$/.test(uf)) {
-    errors.push({ field: 'uf', message: 'UF must contain exactly 2 letters.' });
+    errors.push({
+      field: 'uf',
+      message: 'UF must contain exactly 2 letters.',
+    });
   }
 
   if (registration.length < 1 || registration.length > 40) {
