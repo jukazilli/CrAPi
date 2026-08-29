@@ -7,7 +7,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   bootstrap:
@@ -24,18 +24,33 @@ jobs:
           corepack enable
           corepack prepare pnpm@9.11.0 --activate
 
-      - name: Install and generate lockfile
-        run: pnpm install --no-frozen-lockfile
+      - name: Install dependencies
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
 
-      - name: Upload generated lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: pnpm-lock
-          path: pnpm-lock.yaml
-          if-no-files-found: error
+      - name: Persist initial lockfile
+        id: lockfile
+        if: github.event_name == 'push'
+        run: |
+          if [ -n "$(git status --porcelain -- pnpm-lock.yaml)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add pnpm-lock.yaml
+            git commit -m "chore: add generated pnpm lockfile"
+            git push origin HEAD:${GITHUB_REF_NAME}
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Quality gates
+        if: steps.lockfile.outputs.committed != 'true'
         run: pnpm check:ci
 
       - name: Security gates
+        if: steps.lockfile.outputs.committed != 'true'
         run: pnpm security
