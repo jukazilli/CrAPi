@@ -27,15 +27,15 @@ jobs:
       - name: Install and generate lockfile
         run: pnpm install --no-frozen-lockfile
 
-      - name: Quality gates
-        run: pnpm check:ci
-
-      - name: Security gates
-        run: pnpm security
-
       - name: Upload generated lockfile
         uses: actions/upload-artifact@v4
         with:
           name: pnpm-lock
           path: pnpm-lock.yaml
           if-no-files-found: error
+
+      - name: Quality gates
+        run: pnpm check:ci
+
+      - name: Security gates
+        run: pnpm security

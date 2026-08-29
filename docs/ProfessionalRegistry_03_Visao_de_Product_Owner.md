@@ -48,7 +48,7 @@ Para aplicações internas, o Professional Registry oferece:
 - Sincronização periódica e refresh sob demanda.
 - API Key lifecycle completo.
 - Console operacional.
-- D1 e Worker independentes.
+- Supabase PostgreSQL e Cloudflare Worker independentes.
 - Auditoria mínima.
 - Cache e quotas.
 - Estrutura preparada para CRM.
@@ -92,7 +92,7 @@ Para aplicações internas, o Professional Registry oferece:
 ### Custos
 
 - requests/dia frente ao soft limit;
-- D1 reads/writes;
+- leituras/escritas no PostgreSQL, storage e egress;
 - chamadas externas evitadas por cache.
 
 ## Definition of Beta Ready

@@ -38,7 +38,7 @@ Quando houver conflito:
 
 1. segurança e privacidade;
 2. briefing/escopo aprovado;
-3. visão do PO;
+3. visão de PO;
 4. arquitetura;
 5. UX/UI;
 6. backlog;
@@ -49,3 +49,14 @@ Código existente **não transforma comportamento acidental em requisito**.
 ## Fonte de verdade para IA
 
 O arquivo raiz `AGENTS.md` traduz estes documentos em instruções executáveis para agentes de código. Nenhum agente deve iniciar implementação sem identificar o item de backlog, os requisitos afetados e os testes esperados.
+
+## Decisões arquiteturais e contratos operacionais
+
+Complementam a documentação canônica:
+
+- `adr/ADR-0001_Cloudflare_Workers_D1_Free_First.md` — histórico da decisão inicial; banco superseded.
+- `adr/ADR-0002_Database_First_Scheduled_Sync_On_Demand_Refresh.md` — estratégia de aquisição e freshness.
+- `adr/ADR-0003_Supabase_Postgres_as_Registry_Store.md` — banco vigente.
+- `security/environment-contract.md` — contrato de configurações e segredos.
+- `api/v1-contract.md` — contrato HTTP da V1.
+- `governance/m0-foundation.md` — estado e gates da fundação M0.

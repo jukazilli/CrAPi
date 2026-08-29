@@ -1,6 +1,7 @@
 # Professional Registry — Arquitetura e Engenharia
 
-Status: Draft v0.1
+Status: Canônico v0.2  
+Data: 2026-08-29
 
 ## 1. Arquitetura lógica
 
@@ -18,15 +19,15 @@ A arquitetura oficial é **Database-first + Scheduled Synchronization + On-deman
                  compare source_hash
                         |
                         v
-                  Registry Store (D1)
-              current + history + sync
+             Supabase PostgreSQL
+          current + history + sync/audit
                         ^
                         |
         on-demand refresh when required
                         |
-                       API
-                      /   \
-                 Daygym   Stude.ai
+                 Cloudflare Worker API
+                      /       \
+                 Daygym     Stude.ai
 
                        CONTROL PLANE
 Admin -> Cloudflare Access -> Console SPA -> Admin Routes
@@ -35,19 +36,21 @@ Admin -> Cloudflare Access -> Console SPA -> Admin Routes
                               Registry / Sync / Keys
 ```
 
-A chamada normal do cliente **não chama o conselho externo**. Ela consulta o `professional_registry` e aplica a Freshness Policy. Apenas miss/stale/critical verification podem provocar refresh externo controlado.
+A chamada normal do cliente **não chama o conselho externo**. Ela consulta `professional_registry` no Supabase e aplica a Freshness Policy. Apenas miss/stale/critical verification podem provocar refresh externo controlado.
 
-## 2. Regra de fronteira
+## 2. Fronteiras
 
-Aplicações clientes conhecem apenas o contrato HTTP.
+Aplicações clientes conhecem apenas o contrato HTTP do CrAPi.
 
 Elas não conhecem:
-- D1;
+- Supabase/PostgreSQL;
+- credenciais do banco;
 - provider concreto;
-- scraper;
-- parser;
+- scraper/parser;
 - credenciais upstream;
 - circuit breaker.
+
+Nenhum consumidor acessa o Supabase diretamente.
 
 ## 3. Organização proposta
 
@@ -65,9 +68,8 @@ Elas não conhecem:
     providers/
     security/
     ui/
-  infra/
-    d1/
-      migrations/
+  supabase/
+    migrations/
   tooling/
   tests/
     fixtures/
@@ -80,10 +82,10 @@ Elas não conhecem:
 - Factory/Registry: seleção por council/UF.
 - Chain of Responsibility: fonte nacional -> regional fallback quando aprovado.
 - Circuit Breaker: upstream.
-- Cache Aside: verificações.
-- Single Flight: consultas idênticas concorrentes.
-- Repository: persistência D1.
-- Ports and Adapters: transporte/fonte não invade domínio.
+- Database-first/Freshness Policy: consulta operacional.
+- Single Flight: refreshes idênticos concorrentes.
+- Repository: persistência Supabase/PostgreSQL.
+- Ports and Adapters: transporte e fonte não invadem o domínio.
 
 ## 5. Autenticação de aplicações
 
@@ -91,41 +93,47 @@ V1:
 
 `Authorization: Bearer <api-key>`
 
-API Keys:
+API Keys próprias do CrAPi:
 - alta entropia;
 - prefixo `prk_test_` / `prk_live_`;
 - secret mostrado uma vez;
-- digest com pepper server-side;
+- digest HMAC-SHA256 com pepper server-side;
 - `last4`;
 - scopes;
-- status;
-- expiração;
-- aplicação;
-- limite.
+- status e expiração;
+- aplicação e limite.
 
-Não usar API Key no browser/mobile distribuído. O backend do produto consumidor chama a Registry API.
+A API Key do CrAPi nunca é uma credencial Supabase. Não usar key privilegiada em browser/mobile distribuído; o backend consumidor chama a Registry API.
 
 ## 6. Autenticação administrativa
 
-Cloudflare Access na fundação.
+Cloudflare Access é a barreira inicial do Control Plane.
 
-O Control Plane nunca aceita API Key de aplicação como sessão administrativa.
+O Control Plane nunca aceita API Key de aplicação como sessão administrativa. A UI não recebe `SUPABASE_SECRET_KEY` nem conecta diretamente ao banco.
 
-## 7. Banco
+## 7. Banco — Supabase PostgreSQL
 
-Entidades:
+Supabase é o banco exclusivo do CrAPi. A fundação usa Data API/PostgREST sobre HTTPS entre Worker e Supabase.
+
+Regras:
+- migrations em `supabase/migrations`;
+- RLS habilitado em todas as tabelas operacionais;
+- sem grants/policies para `anon` e `authenticated` na fundação;
+- credencial privilegiada somente no secret store do Worker;
+- índices em chaves de lookup e filtros operacionais;
+- consultas parametrizadas/estruturadas;
+- aplicações consumidoras não conhecem URL/chave do banco.
+
+Entidades centrais:
 
 ### applications
 Identidade de consumidor.
 
-### api_keys
-Metadados + digest; nunca segredo em claro.
-
-### api_key_scopes
-Permissões.
+### api_keys / api_key_scopes
+Metadados, digest e permissões; nunca segredo em claro.
 
 ### api_requests
-Metadados sanitizados.
+Metadados sanitizados de consumo.
 
 ### professional_registry
 Snapshot operacional atual por conselho/UF/registro.
@@ -133,76 +141,57 @@ Snapshot operacional atual por conselho/UF/registro.
 Campos centrais: `first_seen_at`, `last_seen_at`, `last_verified_at`, `source_hash`, `freshness_state`.
 
 ### professional_registry_history
-Histórico imutável de alterações relevantes observadas.
+Histórico append-only de alterações relevantes observadas.
 
-### sync_runs
-Execuções de sincronização, modo, métricas e estado.
-
-### sync_cursors
-Checkpoint por provider/partição para retomada.
-
-### sync_changes
-Resumo/auditoria de novos e alterados por execução.
+### sync_runs / sync_cursors / sync_changes
+Execuções, checkpoints e alterações de sincronização.
 
 ### professional_verifications
 Evidência das verificações solicitadas pelas aplicações.
 
-### verification_cache
-Opcional para resultados derivados/refresh locks; não substitui a tabela canônica de registry.
+### providers / provider_health
+Configuração e estado das fontes.
 
-### providers
-Configuração lógica.
+### security_events / admin_audit_log
+Eventos de segurança e mudanças administrativas.
 
-### provider_health
-Estado operacional.
-
-### security_events
-Eventos relevantes.
-
-### admin_audit_log
-Mudanças administrativas.
-
-## 8. Freshness, cache e fonte operacional
+## 8. Freshness e fonte operacional
 
 A fonte operacional é `professional_registry`.
 
-Estados de freshness sugeridos:
+Estados:
 - `FRESH`;
 - `AGING`;
 - `STALE`;
 - `UNKNOWN`.
 
-A política é configurável por provider e tipo de status. Exemplo conceitual: registro recente retorna imediatamente; registro envelhecendo pode retornar e agendar refresh; registro stale tenta refresh antes de concluir quando a operação exigir.
+Chave lógica de lookup:
 
-Chave de lookup conceitual:
+`council + uf + normalized_registration`
 
-`council:uf:normalized_registration`
-
-TTL depende do resultado e da semântica.
-
-Cache jamais transforma `UNKNOWN` em resultado mais conclusivo.
+A política é configurável por provider. Registro fresh retorna do banco; aging pode retornar e agendar refresh; stale pode exigir refresh antes da conclusão. Freshness nunca transforma `UNKNOWN` em estado profissional mais conclusivo.
 
 ## 9. Sync Engine
 
-Modos suportados por provider:
-- `FULL`: fonte permite enumerar/listar toda a base de forma apropriada;
-- `INCREMENTAL`: fonte permite obter alterações desde cursor/data;
-- `KNOWN_RECORDS`: atualiza somente registros já conhecidos;
-- `ON_DEMAND`: consulta um registro específico solicitado.
+Modos por provider:
+- `FULL`;
+- `INCREMENTAL`;
+- `KNOWN_RECORDS`;
+- `ON_DEMAND`.
 
 Nunca enumerar números de registro por força bruta para simular full sync.
 
-O Sync Engine:
-1. abre `sync_run`;
-2. carrega cursor/checkpoint;
-3. coleta lotes;
-4. normaliza;
-5. calcula `source_hash`;
-6. grava apenas novos/alterados;
-7. atualiza `last_seen_at`;
-8. registra history para mudança relevante;
-9. avança cursor;
-10. finaliza métricas/status.
+Fluxo:
+1. abrir `sync_run`;
+2. carregar cursor/checkpoint;
+3. coletar lote;
+4. validar e normalizar;
+5. calcular `source_hash`;
+6. inserir novo ou atualizar alterado;
+7. atualizar metadados de observação;
+8. registrar history quando necessário;
+9. avançar cursor;
+10. finalizar métricas/status.
 
 Ausência em uma execução não executa DELETE nem muda automaticamente status profissional.
 
@@ -215,24 +204,29 @@ interface CouncilProvider {
 }
 ```
 
-Provider é responsável apenas por integração e normalização da fonte.
+A evolução do contrato deverá também declarar capacidades de sync, sem acoplar domínio ao transporte HTTP/browser.
 
 ## 11. Result contract
 
-`FOUND`, `NOT_FOUND`, `INCONCLUSIVE`, `SOURCE_UNAVAILABLE`.
+Query result:
+- `FOUND`;
+- `NOT_FOUND`;
+- `INCONCLUSIVE`;
+- `SOURCE_UNAVAILABLE`.
 
-Status é um eixo separado.
+Status profissional é eixo separado e pode ser `UNKNOWN`.
 
 ## 12. Resiliência
 
 - timeout upstream;
-- retry limitado apenas para falhas seguras;
+- retry limitado para falhas seguras;
 - exponential backoff;
 - circuit breaker;
-- single flight;
-- cache;
+- single-flight;
 - response size limit;
-- parser failure isolada.
+- parser failure isolada;
+- último snapshot válido preservado;
+- banco indisponível => fail closed/readiness degradada, sem fallback inseguro.
 
 ## 13. Ambientes
 
@@ -241,9 +235,10 @@ Status é um eixo separado.
 - production.
 
 Cada ambiente possui:
-- Worker/D1;
+- Worker próprio;
+- configuração/credencial Supabase próprias ou isolamento aprovado;
+- API Keys próprias;
 - secrets;
-- chaves;
 - domínio;
 - quotas.
 
@@ -255,14 +250,12 @@ Fluxo alvo:
 
 `branch -> PR -> CI -> staging -> evidência -> main -> production`
 
-Produção deve usar artefato/commit comprovado.
+Produção deve promover commit/artefato comprovado. Migration criada no Git não é considerada aplicada até validação no projeto correspondente.
 
 ## 15. Scheduler
 
-Cloudflare Cron Triggers (ou mecanismo equivalente aprovado por ADR) acionam partições de sync em horários distribuídos. Jobs não devem iniciar todos os UFs/providers simultaneamente. Frequência é configuração operacional, não constante de código.
+Cloudflare Cron Triggers (ou mecanismo equivalente aprovado por ADR) acionam partições de sync em horários distribuídos. Jobs não iniciam todos os UFs/providers simultaneamente. Frequência é configuração operacional, não constante de código.
 
 ## 16. Browser automation
 
-Não faz parte do runtime principal do beta.
-
-Caso um provider futuramente exija browser legítimo, ele será isolado como adapter/serviço específico para não impor Chromium a todas as verificações.
+Não faz parte do runtime principal do beta. Se um provider exigir browser legítimo, ele será isolado como adapter/serviço específico e não poderá implementar evasão de controles anti-bot.
