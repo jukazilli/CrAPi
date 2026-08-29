@@ -1,51 +1,65 @@
 # Professional Registry — Segurança, Threat Model e Gestão de Chaves
 
-Status: Obrigatório antes de beta real.
+Status: Obrigatório antes de beta real.  
+Data: 2026-08-29
 
 ## 1. Ativos
 
-- API Keys;
+- API Keys do CrAPi;
 - pepper/digests;
-- dados de verificação;
-- logs;
-- banco D1;
+- `SUPABASE_SECRET_KEY`/credenciais privilegiadas;
+- Registry Store e histórico;
+- logs/auditoria;
 - configuração de providers;
 - sessão administrativa;
 - secrets de deploy.
 
 ## 2. Fronteiras de confiança
 
-1. Internet -> Data Plane.
-2. Aplicação cliente -> Registry API.
-3. Admin -> Cloudflare Access.
-4. Worker -> D1.
-5. Worker -> conselho externo.
+1. Internet -> Cloudflare Worker/Data Plane.
+2. Backend consumidor -> Registry API.
+3. Admin -> Cloudflare Access -> Control Plane.
+4. Worker -> Supabase Data API/PostgreSQL.
+5. Worker/Sync Engine -> conselho externo.
 
 ## 3. Ameaças principais
 
-### Chave roubada
+### API Key do CrAPi roubada
 Mitigação:
-- keys por aplicação;
+- keys por aplicação/ambiente;
 - scopes;
 - quota;
-- revoke;
-- rotate;
+- revoke/rotate;
 - last-used;
 - security event.
 
-### Chave exposta em web/mobile
+### Key exposta em web/mobile
 Mitigação:
-- proibição arquitetural;
-- scanner de variáveis/segredos;
-- integração server-to-server.
+- integração server-to-server;
+- scanner de segredos;
+- proibição arquitetural de key privilegiada em bundle distribuído.
 
-### DB leak
+### Credencial Supabase comprometida
+Impacto elevado porque credencial server-side pode acessar dados privilegiados.
+
 Mitigação:
-- segredo não armazenado;
+- somente secret store do Worker;
+- nunca em documentação, CI output ou cliente;
+- key separada por serviço/ambiente quando disponível;
+- rotação;
+- RLS como defesa adicional;
+- `anon`/`authenticated` sem grants no Registry Store.
+
+### Vazamento do banco
+Mitigação:
+- API key raw não armazenada;
 - digest com pepper separado;
-- mínimo dado operacional.
+- minimização de dados;
+- RLS;
+- trilha de auditoria;
+- retenção controlada.
 
-### Brute force de keys
+### Brute force de API Keys
 Mitigação:
 - alta entropia;
 - comparação segura;
@@ -53,25 +67,25 @@ Mitigação:
 - eventos de falha.
 
 ### Replay
-Bearer key por TLS não torna replay impossível se o request for capturado em um endpoint comprometido. Caso threat model futuro exija resistência adicional, ativar assinatura HMAC por request com timestamp/nonce sem alterar o contrato de negócio.
+Bearer key via TLS não impede replay se um endpoint consumidor for comprometido. Caso o threat model exija proteção adicional, HMAC por request com timestamp/nonce poderá ser adotado por versão de segurança sem alterar a semântica de negócio.
 
 ### Abuse / quota exhaustion
 - rate limit por key/app;
 - global safety limits;
-- cache;
+- database-first;
 - circuit breaker;
 - bloqueio administrativo.
 
 ### Injection
 - schemas estritos;
-- queries parametrizadas;
+- queries parametrizadas/SDK estruturado;
 - nunca interpolar input em SQL.
 
 ### SSRF
-Providers não aceitam URL arbitrária do cliente. URLs upstream são registradas em código/configuração aprovada.
+Providers não aceitam URL arbitrária do cliente. Upstreams são cadastrados em código/configuração aprovada.
 
-### Malicious upstream HTML
-- tamanho máximo;
+### Malicious upstream HTML/JSON
+- limite de tamanho;
 - timeout;
 - parser sem execução de script;
 - fixtures;
@@ -79,75 +93,87 @@ Providers não aceitam URL arbitrária do cliente. URLs upstream são registrada
 
 ### Sensitive logs
 Nunca registrar:
-- Authorization;
+- `Authorization`;
 - API Key completa;
+- Supabase secret/service-role;
 - cookie;
-- secret;
+- senha PostgreSQL;
 - body completo por padrão.
 
 ## 4. API Key lifecycle
 
 Estados:
-- `ACTIVE`
-- `ROTATING`
-- `REVOKED`
-- `EXPIRED`
+- `ACTIVE`;
+- `ROTATING`;
+- `REVOKED`;
+- `EXPIRED`.
 
 Criação:
-1. CSPRNG;
-2. prefixo + secret;
-3. digest server-side;
-4. persistir digest/prefix/last4;
+1. gerar secret via CSPRNG;
+2. montar prefixo + secret;
+3. calcular digest HMAC-SHA256 com `API_KEY_PEPPER`;
+4. persistir digest/prefix/last4/metadados;
 5. retornar secret uma única vez.
 
 Rotação:
-- nova key;
+- gerar nova key;
 - grace period opcional;
-- antiga revogada automaticamente.
+- migrar consumidor;
+- revogar antiga;
+- auditar sem persistir segredo.
 
 ## 5. Scopes iniciais
 
-- `registry:verify`
-- `registry:read` (se histórico for permitido)
-- `registry:batch` (futuro)
+- `registry:verify`;
+- `registry:read`;
+- `registry:batch` futuro.
 
 Admin scopes não são expostos a API Keys de aplicação.
 
-## 6. HTTP
+## 6. Supabase
+
+- `SUPABASE_URL` é configuração; não concede acesso por si só.
+- `SUPABASE_SECRET_KEY` é segredo de backend e nunca pertence ao browser/mobile.
+- O Worker usa conexão server-side ao Supabase.
+- Aplicações consumidoras não recebem publishable/secret key do projeto CrAPi.
+- RLS é habilitado em todas as tabelas da fundação.
+- A fundação não cria policies permissivas para `anon`/`authenticated`.
+- Migrations só são consideradas concluídas depois de aplicadas e revisadas por advisors de segurança/performance.
+
+## 7. HTTP
 
 - HTTPS obrigatório;
-- API Key em `Authorization`;
+- API Key do CrAPi em `Authorization`;
 - `Cache-Control: no-store` para respostas administrativas com segredos;
 - security headers no console;
-- CORS fechado; integração principal é server-to-server.
+- CORS fechado/restrito; integração de negócio é server-to-server.
 
-## 7. Console
+## 8. Console
 
-- protegido por Access;
-- ação destrutiva auditada;
+- protegido por Cloudflare Access;
+- ações destrutivas auditadas;
 - segredo somente one-time reveal;
-- sessão administrativa não é compartilhada com Data Plane.
+- sessão administrativa não é compartilhada com Data Plane;
+- console não acessa Supabase privilegiado diretamente.
 
-## 8. Incidente
+## 9. Incidente de key
 
-Quando uma chave vaza:
 1. revogar;
-2. identificar requests pelo key ID;
+2. identificar requests por key ID;
 3. gerar nova;
-4. atualizar consumidor;
+4. atualizar backend consumidor;
 5. revisar origem;
-6. registrar security event sem copiar segredo.
+6. registrar evento sem copiar segredo.
 
-## 9. Critérios de segurança para release
+## 10. Critérios de segurança para release
 
-- secrets scan;
+- secret scan;
 - dependency audit;
-- auth tests;
-- scope tests;
-- rate limit tests;
+- auth/scope/rate-limit tests;
 - redaction tests;
 - SQL injection tests;
-- broken auth tests;
-- key rotation/revocation tests;
-- Access comprovado;
-- backup/export testado.
+- broken-auth tests;
+- rotation/revocation tests;
+- RLS/advisors revisados;
+- Cloudflare Access comprovado;
+- backup/export/restore comprovado.

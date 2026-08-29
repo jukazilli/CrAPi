@@ -29,7 +29,7 @@ Identifique um `backlog_id`. Se a solicitação não corresponder ao escopo apro
 - Não aceitar URL arbitrária para provider.
 - Não fazer enumeração cega de números de registro para simular sincronização completa.
 - Não executar DELETE/inativação por ausência em um sync.
-- Requests normais devem ser database-first; acesso upstream passa pela política de sync/refresh.
+- Requests normais devem ser database-first; acesso upstream precisa passar pela política de sync/refresh.
 - Não alterar contrato V1 silenciosamente.
 - Não remover teste/gate para passar CI.
 
@@ -99,3 +99,12 @@ Persistir apenas digest + prefix + last4 + metadados.
 ## 8. Mudança arquitetural
 
 Framework, banco, auth, criptografia, retenção e provider primário exigem ADR/revisão explícita.
+
+## 9. Banco Supabase
+
+- Migrations ficam em `supabase/migrations`.
+- Toda tabela operacional deve ter RLS habilitado.
+- Não criar policies para `anon`/`authenticated` sem requisito/ADR explícito.
+- O Worker é o único runtime privilegiado da fundação.
+- `SUPABASE_SECRET_KEY`, service-role e senha PostgreSQL nunca entram em código cliente.
+- Migration criada não é considerada aplicada; valide no projeto e rode advisors.

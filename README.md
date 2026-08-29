@@ -1,30 +1,40 @@
-# Professional Registry — Foundation Pack
+# CrAPi — Professional Registry
 
-Pacote inicial de documentação canônica para a aplicação independente de verificação de registros profissionais.
+API privada e independente para normalizar e verificar registros de conselhos profissionais brasileiros.
 
-## Conteúdo
+## Arquitetura
 
-- briefing e visão de produto;
-- pesquisa/viabilidade;
-- princípios e especificação de UX/UI;
-- padrão de engenharia com IA;
-- arquitetura;
-- segurança e API Keys;
-- operação/custos;
-- sincronização programada, Registry Store e freshness;
-- backlog/rastreabilidade;
-- `AGENTS.md`.
+- Cloudflare Workers: Data Plane e rotas administrativas.
+- Supabase PostgreSQL: Registry Store, histórico, sync e auditoria.
+- Database-first + Scheduled Sync + On-demand Refresh.
+- API Keys próprias por aplicação/ambiente.
+- Control Plane protegido separadamente.
 
-## Uso no repositório
+## Estado
 
-Sugestão:
+Fundação M0 em implementação.
 
-```text
-/
-  AGENTS.md
-  README.md
-  docs/
-    ...
+- documentação canônica: pronta;
+- contrato V1: criado;
+- migration inicial Supabase: criada, ainda precisa ser aplicada ao projeto conectado;
+- quality/security gates: em bootstrap;
+- deploy staging: pendente.
+
+## Toolchain
+
+- Node 22.12.0
+- pnpm 9.11.0
+- TypeScript 5.9.3
+- ESLint
+- Prettier
+- Vitest
+
+## Comandos
+
+```bash
+pnpm install
+pnpm check:ci
+pnpm security
 ```
 
-O `.md` deve ser a fonte canônica para agentes de código. Formatos DOCX, quando necessários, devem ser gerados como publicação/entrega, não como fonte de verdade concorrente.
+Leia `AGENTS.md` antes de alterar código.

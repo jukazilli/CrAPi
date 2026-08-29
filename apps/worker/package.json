@@ -1,0 +1,10 @@
+{
+  "name": "@crapi/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@crapi/contracts": "workspace:*",
+    "@crapi/security": "workspace:*"
+  }
+}

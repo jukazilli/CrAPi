@@ -1,32 +1,40 @@
 # Professional Registry — Briefing de Produto e Escopo do Beta
 
-Status: Canônico v0.2  
+Status: Canônico v0.3  
 Data: 2026-08-29
 
 ## 1. Resumo executivo
 
-**Professional Registry** é uma plataforma interna e independente para verificação de registros profissionais em conselhos regulamentados brasileiros.
+**Professional Registry (CrAPi)** é uma plataforma interna e independente para verificação de registros profissionais em conselhos regulamentados brasileiros.
 
 O produto oferece duas superfícies:
 
-- **Data Plane:** API privada consumida por aplicações autorizadas.
-- **Control Plane:** console administrativo para administrar aplicações, API Keys, consumo, registros sincronizados, requisições, providers, sincronizações e eventos de segurança.
+- **Data Plane:** API privada consumida exclusivamente por aplicações autorizadas.
+- **Control Plane:** console administrativo para Applications, API Keys, consumo, registros sincronizados, requests, providers, sincronizações e eventos de segurança.
 
-Daygym e Stude.ai serão os primeiros consumidores, mas o produto não terá dependência de código, banco, autenticação ou infraestrutura desses sistemas.
+Daygym e Stude.ai serão os primeiros consumidores, mas o CrAPi não depende de código, banco, autenticação ou infraestrutura desses sistemas.
 
 ## 2. Problema a resolver
 
-Cada conselho disponibiliza informações de maneira diferente. Fazer cada aplicação implementar seu próprio scraper produziria duplicação de código, respostas incompatíveis, maior superfície de ataque, ausência de auditoria central e manutenção multiplicada.
+Cada conselho disponibiliza informações de maneira diferente. Fazer cada aplicação implementar seu próprio scraper criaria duplicação, contratos incompatíveis, maior superfície de ataque, ausência de auditoria central e manutenção multiplicada.
 
-O Professional Registry transforma fontes heterogêneas em um contrato confiável e versionado.
+O CrAPi transforma fontes oficiais heterogêneas em um contrato único, versionado, auditável e conservador.
 
 ## 3. Objetivo do produto
 
-Entregar um endpoint único que responda qual conselho e registro foram consultados, se existe correspondência conhecida, qual status foi explicitamente informado quando disponível, qual a fonte, qual a idade dos dados e quão conclusiva é a verificação.
+Entregar uma API capaz de responder:
 
-## 4. Modelo operacional de dados — Database-first
+- qual conselho e registro foram consultados;
+- se existe correspondência conhecida;
+- qual status foi explicitamente informado, quando disponível;
+- qual fonte/provider originou o dado;
+- quando o registro foi visto/verificado pela última vez;
+- qual a freshness do snapshot;
+- quão conclusiva é a verificação.
 
-A aplicação **não dependerá de consulta ao vivo ao conselho em cada request de Daygym/Stude.ai**. O banco próprio do Professional Registry é a fonte operacional primária.
+## 4. Modelo operacional — Database-first
+
+A aplicação **não depende de consulta ao vivo ao conselho em cada request**. O banco próprio do CrAPi é a fonte operacional primária.
 
 ```text
 CONFEF / CREF / CFM / demais fontes
@@ -36,7 +44,8 @@ CONFEF / CREF / CFM / demais fontes
        fetch + parse + normalize
               |
               v
-     Professional Registry DB
+      Supabase PostgreSQL
+       Registry Store próprio
               |
               v
          Registry API
@@ -46,18 +55,36 @@ CONFEF / CREF / CFM / demais fontes
 
 O sistema combina quatro estratégias por provider:
 
-1. **FULL** — sincroniza a base quando a fonte oferece listagem, paginação, dataset ou mecanismo apropriado.
-2. **INCREMENTAL** — busca somente inclusões/alterações desde um cursor/data quando a fonte oferece isso.
-3. **KNOWN_RECORDS** — revalida periodicamente os registros já conhecidos quando a fonte só permite busca individual.
-4. **ON_DEMAND** — consulta um registro específico quando ele não existe na base, está stale ou uma operação exige confirmação recente.
+1. **FULL** — quando a fonte oferece listagem, paginação, dataset ou mecanismo apropriado.
+2. **INCREMENTAL** — inclusões/alterações desde cursor/data quando a fonte oferece isso.
+3. **KNOWN_RECORDS** — revalida registros já conhecidos quando a fonte só permite busca individual.
+4. **ON_DEMAND** — consulta registro específico quando ausente, stale ou quando a operação exige confirmação recente.
 
-A frequência é configurável por provider. A fundação aceita **sincronização semanal como baseline de baixo custo**, mas não a torna regra universal. O dado é atualizado com maior frequência quando a criticidade, a fonte e as cotas permitirem.
+A frequência é configurável por provider. A fundação aceita **sincronização semanal como baseline de baixo custo**, mas não a transforma em regra universal.
 
-### Regra fundamental
+> Daygym, Stude.ai e futuros consumidores consultam a Registry API. Scraping, sincronização, normalização e acesso ao banco pertencem exclusivamente ao CrAPi.
 
-> Daygym, Stude.ai e futuros consumidores consultam a Registry API; a Registry API consulta prioritariamente seu banco próprio. Scraping e sincronização pertencem exclusivamente ao Professional Registry.
+## 5. Infraestrutura da fundação
 
-## 5. Contrato conceitual
+- **Cloudflare Workers** para Data Plane e rotas administrativas.
+- **Supabase PostgreSQL** como Registry Store, histórico, sync e auditoria.
+- **Supabase Data API/PostgREST sobre HTTPS** como caminho inicial Worker -> banco.
+- **Static Assets/SPA** para o console.
+- **Cloudflare Access** como autenticação administrativa inicial.
+- **GitHub** para versionamento, PRs e CI/CD.
+- secrets somente nos secret stores dos provedores.
+
+O Supabase é infraestrutura **exclusiva do CrAPi**. Nenhum consumidor recebe acesso direto ao banco.
+
+### 5.1 Credenciais Supabase
+
+- `SUPABASE_URL` é configuração de ambiente.
+- `SUPABASE_SECRET_KEY` é segredo exclusivo de runtime server-side.
+- A credencial privilegiada do Supabase nunca é entregue a Daygym, Stude.ai, browser ou mobile.
+- Consumidores recebem somente API Keys do CrAPi (`prk_test_*` / `prk_live_*`).
+- Tabelas operacionais têm RLS habilitado e não possuem acesso `anon`/`authenticated` na fundação.
+
+## 6. Contrato conceitual
 
 ### Entrada
 
@@ -102,17 +129,15 @@ A frequência é configurável por provider. A fundação aceita **sincronizaç�
 
 Uma verificação sob demanda pode retornar `source.live: true` e atualizar o Registry Store antes da resposta.
 
-## 6. Estados obrigatórios
+## 7. Estados obrigatórios
 
 ### Query result
-
 - `FOUND`
 - `NOT_FOUND`
 - `INCONCLUSIVE`
 - `SOURCE_UNAVAILABLE`
 
 ### Registration status
-
 - `ACTIVE`
 - `INACTIVE`
 - `SUSPENDED`
@@ -120,89 +145,69 @@ Uma verificação sob demanda pode retornar `source.live: true` e atualizar o Re
 - `UNKNOWN`
 
 ### Status semantics
-
 - `EXPLICIT`
 - `INFERRED`
 - `UNKNOWN`
 
 ### Freshness
-
 - `FRESH`
 - `AGING`
 - `STALE`
 - `UNKNOWN`
 
-Regra: ausência de resultado não prova inatividade.
+Ausência de resultado ou ausência em uma sincronização **não prova inatividade**.
 
-## 7. Usuários
+## 8. Usuários e atores
 
-### 7.1 Operador/administrador
-
+### Operador/administrador
 Administra aplicações, chaves, registries, syncs, providers, limites, segurança e investigação.
 
-### 7.2 Desenvolvedor integrador
+### Desenvolvedor integrador
+Recebe uma chave do CrAPi e integra o backend da aplicação cliente.
 
-Recebe uma chave e integra o backend da aplicação cliente.
+### Aplicação cliente
+Backend do Daygym, Stude.ai ou sistema futuro autorizado.
 
-### 7.3 Aplicação cliente
-
-Backend do Daygym, Stude.ai ou sistema futuro que realiza verificação.
-
-### 7.4 Profissional verificado
-
+### Profissional verificado
 É objeto da consulta, mas não utiliza diretamente o console no beta.
 
-## 8. Escopo do beta
+## 9. Escopo do beta
 
 ### API
-
 - `POST /v1/professional-registrations/verify`;
 - health/readiness sem dados sensíveis;
-- autenticação por API Key;
-- scopes;
-- quotas por aplicação/chave;
+- autenticação por API Key própria;
+- scopes e quotas;
 - lookup database-first;
-- Freshness Policy;
-- on-demand refresh;
-- single-flight/coalescing para refreshes idênticos;
-- resposta normalizada;
-- request IDs;
-- erros versionados.
+- Freshness Policy e on-demand refresh;
+- single-flight/coalescing;
+- request IDs e erros versionados.
 
 ### Registry Store
-
-- tabela canônica de registros conhecidos;
+- snapshot canônico;
 - histórico de alterações;
 - `first_seen_at`, `last_seen_at`, `last_verified_at`;
-- `source_hash` para evitar writes desnecessários;
+- `source_hash` para detectar mudanças;
 - freshness explícita;
-- nunca excluir/inativar por mera ausência em uma sincronização.
+- nunca excluir/inativar por mera ausência em sync.
 
 ### CREF
-
 - provider CREF;
 - adapter mock durante fundação;
-- discovery da capacidade real do CONFEF/CREF;
-- adapter HTTP real após discovery;
+- discovery do CONFEF/CREF;
+- adapter HTTP após discovery;
 - FULL/INCREMENTAL apenas quando a fonte permitir;
 - KNOWN_RECORDS/ON_DEMAND quando necessário;
-- fallback regional somente quando definido;
-- parser determinístico;
-- fixtures;
-- detector de alteração de schema.
+- parser determinístico, fixtures e schema-change detector.
 
 ### Sync Engine
-
 - scheduler configurável;
-- `sync_runs`;
-- `sync_cursors`/checkpoints;
-- modos FULL, INCREMENTAL, KNOWN_RECORDS e ON_DEMAND;
+- `sync_runs` e `sync_cursors`;
+- FULL, INCREMENTAL, KNOWN_RECORDS e ON_DEMAND;
 - métricas `processed/new/changed/unchanged/errors`;
-- retomada segura;
-- jobs distribuídos no tempo para evitar rajadas.
+- retomada segura e jobs distribuídos no tempo.
 
 ### Console administrativo
-
 - Overview;
 - Applications;
 - API Keys;
@@ -214,115 +219,56 @@ Backend do Daygym, Stude.ai ou sistema futuro que realiza verificação.
 - Settings operacional mínima.
 
 ### API Keys
-
 - geração criptograficamente segura;
 - exibição somente uma vez;
-- prefixo identificável;
-- hash/digest no banco;
-- revogação;
-- rotação;
-- ambiente `test` / `live`;
-- scopes;
-- limites de uso;
-- último uso.
+- digest no banco, nunca segredo em claro;
+- revogação, rotação, TEST/LIVE, scopes, limites e último uso.
 
 ### Observabilidade
-
-- quantidade de requests;
-- success/error rate;
+- request count e success/error rate;
 - respostas database-only;
 - on-demand refreshes;
 - freshness distribution;
-- sync runs e alterações;
-- latência;
+- sync runs;
 - provider health;
-- 401/403/429;
-- security events;
-- consumo frente aos limites internos.
+- 401/403/429 e security events;
+- consumo frente aos limites internos e ao plano do provedor.
 
-## 9. Fora do beta
+## 10. Fora do beta
 
-- billing;
-- clientes externos self-service;
-- marketplace;
-- cobrança por requisição;
+- billing e clientes externos self-service;
 - CRM real;
 - consulta em lote em larga escala;
 - API pública sem aprovação;
-- keys dentro de apps mobile/browser;
+- keys do CrAPi em browser/mobile;
+- acesso direto de consumidor ao Supabase;
 - bypass de CAPTCHA/Cloudflare/rate limit;
-- enumeração cega de números de registro para descobrir profissionais;
-- armazenamento de HTML bruto sem política de retenção;
-- análise de antecedentes não disponibilizados pelas fontes oficiais.
+- enumeração cega de registros;
+- HTML bruto sem política de retenção.
 
-## 10. Requisitos de independência
-
-O Professional Registry deve possuir repositório, ambientes, D1, domínio, secrets, CI/CD, logs, console, tabelas, backup/export e governança próprios.
-
-Nenhum consumidor recebe acesso direto ao D1.
-
-## 11. Infraestrutura inicial
-
-```text
-                       OFFICIAL SOURCES
-                  CONFEF / CREF / CFM
-                           |
-                    Scheduled Sync
-                           |
-                           v
-                    Sync Engine
-                           |
-                           v
-                       D1 Registry
-                           ^
-                           |
-Applications backend -> Worker API
-        |                  |
-        | API Key          +-- Freshness Policy
-        |                  +-- On-demand Refresh
-        |                  +-- Auth / scopes / quotas
-        v
-      JSON
-```
-
-Control Plane:
-
-```text
-Admin
-  |
-Cloudflare Access
-  |
-Console SPA
-  |
-Admin routes
-  |
-D1 / Registries / Sync / Providers / Audit
-```
-
-## 12. Segurança funcional
+## 11. Segurança funcional
 
 - TLS obrigatório.
-- API Key jamais em query string.
+- API Key do CrAPi jamais em query string.
 - Chave completa exibida uma única vez.
-- Banco armazena digest, prefixo e metadados.
-- Chaves diferentes por app e ambiente.
-- Chave de produção não é usada em Postman compartilhado.
-- Chaves privilegiadas não podem estar em código cliente distribuído.
-- Payloads e respostas não precisam de criptografia adicional na V1 porque TLS protege o transporte; criptografia de aplicação poderá ser adicionada após threat model específico.
-- Request body sensível, `Authorization`, cookies e secrets são redigidos nos logs.
+- Banco armazena digest, prefixo, last4 e metadados.
+- Chaves diferentes por aplicação e ambiente.
+- `Authorization`, cookies e secrets são redigidos nos logs.
 - Admin e Data Plane têm autenticação separada.
+- Payloads não recebem criptografia adicional na V1 sem threat model específico; HTTPS/TLS é obrigatório.
+- Segredo Supabase é separado da API Key do consumidor.
 
-## 13. Regras de sincronização
+## 12. Regras de sincronização
 
 - Ausência em sync não executa `DELETE` físico.
-- Ausência em sync não converte automaticamente para `INACTIVE` ou `CANCELLED`.
+- Ausência em sync não vira automaticamente `INACTIVE`/`CANCELLED`.
 - Mudanças relevantes geram histórico.
-- `source_hash` é usado para detectar alteração e economizar writes.
-- Sync jobs são retomáveis por cursor/checkpoint quando a fonte permitir.
-- Full scan só é adotado quando a fonte expõe mecanismo apropriado; não se faz brute force de registros.
-- Thresholds de freshness e frequência ficam em configuração operacional por provider.
+- `source_hash` identifica alteração.
+- Jobs são retomáveis por checkpoint quando a fonte permitir.
+- Full scan somente quando a fonte expõe mecanismo apropriado.
+- Freshness e frequência são configuração por provider.
 
-## 14. Critério de sucesso do beta
+## 13. Critério de sucesso do beta
 
 O beta está pronto quando uma aplicação consegue:
 
@@ -331,13 +277,14 @@ O beta está pronto quando uma aplicação consegue:
 3. chamar a API pelo backend;
 4. consultar CREF pelo Registry Store;
 5. receber freshness e resposta normalizada;
-6. disparar refresh sob demanda quando necessário;
-7. visualizar uso, registries e syncs no console;
+6. disparar refresh sob demanda;
+7. visualizar uso, registries e syncs;
 8. rotacionar/revogar a chave;
-9. sofrer rate limiting ao exceder sua política;
-10. continuar recebendo resposta segura quando a fonte externa falha;
-11. auditar quando e por qual fonte um registro foi atualizado.
+9. sofrer rate limiting quando aplicável;
+10. receber resposta segura quando upstream falha;
+11. auditar origem e atualização do registro;
+12. operar sem expor credenciais Supabase aos consumidores.
 
-## 15. North Star
+## 14. North Star
 
-> Uma aplicação autorizada deve conseguir verificar um profissional sem conhecer detalhes técnicos do conselho consultado e sem introduzir credenciais ou lógica de scraping no próprio produto.
+> Uma aplicação autorizada deve conseguir verificar um profissional sem conhecer detalhes técnicos do conselho e sem introduzir credenciais ou lógica de scraping no próprio produto.

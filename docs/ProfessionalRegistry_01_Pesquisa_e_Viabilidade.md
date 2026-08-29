@@ -45,7 +45,7 @@ O objetivo do discovery do CREF é identificar o **Minimum Viable Request** nece
 ### Fundação proposta
 
 - Cloudflare Workers para API e Control Plane.
-- Cloudflare D1 como banco próprio.
+- Supabase PostgreSQL como banco próprio.
 - Static Assets/SPA para o console administrativo.
 - Cloudflare Access como barreira inicial do console administrativo.
 - GitHub para versionamento, PRs e CI.
