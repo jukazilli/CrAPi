@@ -46,14 +46,18 @@ O Control Plane não recebe nem expõe a chave privilegiada do Supabase. Todo ac
 
 ## Runtime
 
-Variáveis não sensíveis podem ficar no config do Worker. Segredos devem existir somente no secret store do runtime:
+Configuração não sensível:
 
-- `SUPABASE_URL` — URL do projeto;
-- `SUPABASE_SECRET_KEY` — chave server-side do Supabase;
+- `APP_ENV=staging` — já versionado no `wrangler.jsonc`;
+- `SUPABASE_URL` — URL pública do projeto Supabase.
+
+Segredos que devem existir somente no secret store do runtime:
+
+- `SUPABASE_SECRET_KEY` — chave `sb_secret_*` server-side do Supabase;
 - `API_KEY_PEPPER` — segredo aleatório com pelo menos 32 bytes;
 - `ADMIN_TOKEN` — token separado do Control Plane com pelo menos 32 bytes.
 
-Nunca commitar esses segredos no repositório.
+Nunca commitar ou enviar esses segredos em chat, URL, código cliente ou documentação.
 
 ## Banco
 
