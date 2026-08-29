@@ -11,6 +11,9 @@ export default tseslint.config(
     languageOptions: {
       globals: {
         console: 'readonly',
+        process: 'readonly',
+        crypto: 'readonly',
+        TextEncoder: 'readonly',
         URL: 'readonly',
         Request: 'readonly',
         Response: 'readonly',

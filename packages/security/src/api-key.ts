@@ -25,6 +25,10 @@ function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
 }
 
+function base64UrlChar(index: number): string {
+  return BASE64URL_ALPHABET.charAt(index);
+}
+
 function bytesToBase64Url(bytes: Uint8Array): string {
   let output = '';
 
@@ -33,15 +37,15 @@ function bytesToBase64Url(bytes: Uint8Array): string {
     const second = bytes[index + 1];
     const third = bytes[index + 2];
 
-    output += BASE64URL_ALPHABET[(first >> 2) & 63];
-    output += BASE64URL_ALPHABET[((first & 3) << 4) | ((second ?? 0) >> 4)];
+    output += base64UrlChar((first >> 2) & 63);
+    output += base64UrlChar(((first & 3) << 4) | ((second ?? 0) >> 4));
 
     if (second !== undefined) {
-      output += BASE64URL_ALPHABET[((second & 15) << 2) | ((third ?? 0) >> 6)];
+      output += base64UrlChar(((second & 15) << 2) | ((third ?? 0) >> 6));
     }
 
     if (third !== undefined) {
-      output += BASE64URL_ALPHABET[third & 63];
+      output += base64UrlChar(third & 63);
     }
   }
 
