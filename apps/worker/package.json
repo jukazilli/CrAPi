@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@crapi/contracts": "workspace:*"
+    "@crapi/contracts": "workspace:*",
+    "@crapi/security": "workspace:*"
   }
 }

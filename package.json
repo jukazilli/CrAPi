@@ -13,7 +13,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
-    "typecheck": "tsc -p packages/contracts/tsconfig.json --noEmit && tsc -p apps/worker/tsconfig.json --noEmit",
+    "typecheck": "tsc -p packages/contracts/tsconfig.json --noEmit && tsc -p packages/security/tsconfig.json --noEmit && tsc -p apps/worker/tsconfig.json --noEmit",
     "test": "vitest run",
     "check:toolchain": "node tooling/check-toolchain.mjs",
     "check:secrets": "node tooling/check-secrets.mjs",
