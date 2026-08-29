@@ -44,6 +44,36 @@ Objetivo: integração real com primeiro consumidor, staging/production, observa
 - PR-REQ-019: on-demand refresh para miss/stale.
 - PR-REQ-020: full sync somente quando a fonte expõe enumeração/listagem apropriada.
 
+## Estado de execução — 29/08/2026
+
+| Backlog ID | Status | Evidência |
+| --- | --- | --- |
+| PR-M0-001 | Done | Documentação canônica e `AGENTS.md` versionados. |
+| PR-M0-002 | Done | Node/pnpm fixos, workspaces, lockfile congelado e toolchain reproduzível. |
+| PR-M0-003 | Done | GitHub Actions executa format, toolchain, lint, typecheck, test, build, secret scan e dependency audit com sucesso. |
+| PR-M0-004 | In Progress | Supabase staging está provisionado; Cloudflare Worker hospedado ainda precisa ser criado e provado. |
+| PR-M0-005 | Done | Registry Contract V1 tipado, normalização e testes presentes. |
+| PR-M1-001 | Done | Schema Supabase aplicado, 14 tabelas com RLS, grants restritos e advisors revisados. |
+| PR-M1-002 | In Progress | Geração/digest de API Key implementados; lifecycle administrativo completo ainda pendente. |
+| PR-M1-003 | In Progress | Middleware + lookup Supabase server-only implementados; endpoint protegido real ainda pendente. |
+| PR-M1-004 | In Progress | Scopes fazem parte do schema/auth; integração nas rotas reais continua pendente. |
+
+### Evidência do gate de fundação
+
+A execução hospedada da branch `foundation/m0-supabase` passou com:
+
+- `pnpm install --frozen-lockfile`;
+- Prettier;
+- check de toolchain;
+- ESLint;
+- TypeScript;
+- Vitest;
+- build;
+- secret scan;
+- dependency audit.
+
+O workflow voltou a `contents: read` após a normalização única realizada pelo próprio toolchain da branch.
+
 ## Regras de backlog
 
 Todo item deve possuir:
