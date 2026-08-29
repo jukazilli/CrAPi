@@ -6,5 +6,9 @@
   "preview_urls": true,
   "vars": {
     "APP_ENV": "staging",
+    "SUPABASE_URL": "https://nxwqlxrdgpepscwjprym.supabase.co",
+  },
+  "secrets": {
+    "required": ["SUPABASE_SECRET_KEY", "API_KEY_PEPPER", "ADMIN_TOKEN"],
   },
 }
