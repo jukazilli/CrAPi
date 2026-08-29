@@ -1,6 +1,6 @@
 import { generateApiKey, type ApiKeyEnvironment } from '@crapi/security';
 
-import { SupabaseServerClient } from './supabase-server-client.js';
+import type { SupabaseServerClient } from './supabase-server-client.js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}$/;
