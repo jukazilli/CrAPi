@@ -1,4 +1,4 @@
-name: Bootstrap foundation
+name: Quality gates
 
 on:
   push:
@@ -7,10 +7,10 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  bootstrap:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,6 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.12.0'
+          cache: 'pnpm'
 
       - name: Enable pnpm
         run: |
@@ -25,32 +26,10 @@ jobs:
           corepack prepare pnpm@9.11.0 --activate
 
       - name: Install dependencies
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-          else
-            pnpm install --no-frozen-lockfile
-          fi
-
-      - name: Persist initial lockfile
-        id: lockfile
-        if: github.event_name == 'push'
-        run: |
-          if [ -n "$(git status --porcelain -- pnpm-lock.yaml)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add pnpm-lock.yaml
-            git commit -m "chore: add generated pnpm lockfile"
-            git push origin HEAD:${GITHUB_REF_NAME}
-            echo "committed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "committed=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: pnpm install --frozen-lockfile
 
       - name: Quality gates
-        if: steps.lockfile.outputs.committed != 'true'
         run: pnpm check:ci
 
       - name: Security gates
-        if: steps.lockfile.outputs.committed != 'true'
         run: pnpm security
