@@ -121,14 +121,18 @@ export class RegistryService {
       ? {
           verification: {
             result: 'FOUND',
-            professional_name: registry.professional_name ?? undefined,
+            ...(registry.professional_name !== null
+              ? { professional_name: registry.professional_name }
+              : {}),
             registration_number: registry.registration_number,
             registration_status: registry.registration_status,
             status_semantics: registry.status_semantics,
             council: registry.council,
-            regional_council: registry.regional_council ?? undefined,
+            ...(registry.regional_council !== null
+              ? { regional_council: registry.regional_council }
+              : {}),
             uf: registry.uf,
-            category: registry.category ?? undefined,
+            ...(registry.category !== null ? { category: registry.category } : {}),
           },
           source: {
             authority: 'CrAPi Registry Store',
@@ -137,8 +141,10 @@ export class RegistryService {
             registry_store: true,
           },
           data: {
-            last_seen_at: registry.last_seen_at ?? undefined,
-            last_verified_at: registry.last_verified_at ?? undefined,
+            ...(registry.last_seen_at !== null ? { last_seen_at: registry.last_seen_at } : {}),
+            ...(registry.last_verified_at !== null
+              ? { last_verified_at: registry.last_verified_at }
+              : {}),
             freshness: registry.freshness_state,
             acquisition_mode: registry.acquisition_mode,
           },
@@ -174,7 +180,7 @@ export class RegistryService {
       principal,
       httpStatus: 200,
       queryResult: response.verification.result,
-      providerId: registry?.provider_id,
+      providerId: registry?.provider_id ?? null,
       registryStoreHit: Boolean(registry),
       latencyMs,
     });
