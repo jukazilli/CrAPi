@@ -12,16 +12,48 @@ API privada e independente para normalizar e verificar registros de conselhos pr
 
 ## Estado
 
-Fundação M0/M1 em implementação.
+Primeiro checkpoint operacional implementado; publicação de staging pendente.
 
 - documentação canônica: pronta;
 - contrato V1: criado;
 - Supabase `cr-api`: conectado e saudável em `sa-east-1`;
-- migrations fundacionais: aplicadas e alinhadas ao histórico remoto;
+- migrations fundacionais e M1: aplicadas e alinhadas ao histórico remoto;
 - 14 tabelas operacionais: criadas com RLS ativo;
-- security/performance advisors: revisados; FKs sem índice corrigidas;
-- quality/security gates: em fechamento;
-- deploy staging do Worker: pendente.
+- security/performance advisors: revisados;
+- quality/security gates: verdes;
+- Control Plane mínimo: implementado em `/admin`;
+- Applications + API Keys: criar, listar, rotacionar e revogar;
+- chave raw: exibida somente na criação/rotação e nunca persistida;
+- endpoint protegido `POST /v1/professional-registrations/verify`: implementado;
+- quota diária e auditoria de requests: implementadas;
+- miss no Registry Store: retorna `INCONCLUSIVE`, nunca falso `INACTIVE`;
+- `apps/worker/wrangler.jsonc`: pronto para staging Cloudflare;
+- deploy staging do Worker: pendente de credenciais/configuração do provedor.
+
+## Checkpoint navegável
+
+Quando o Worker estiver hospedado, o fluxo mínimo será:
+
+1. abrir `/admin`;
+2. informar o `ADMIN_TOKEN` de staging;
+3. criar uma Application;
+4. gerar uma API Key `TEST`;
+5. copiar a chave exibida uma única vez;
+6. chamar `POST /v1/professional-registrations/verify` com `Authorization: Bearer <api-key>`;
+7. rotacionar ou revogar a chave pelo Control Plane.
+
+O Control Plane não recebe nem expõe a chave privilegiada do Supabase. Todo acesso ao banco ocorre no runtime server-side.
+
+## Runtime
+
+Variáveis não sensíveis podem ficar no config do Worker. Segredos devem existir somente no secret store do runtime:
+
+- `SUPABASE_URL` — URL do projeto;
+- `SUPABASE_SECRET_KEY` — chave server-side do Supabase;
+- `API_KEY_PEPPER` — segredo aleatório com pelo menos 32 bytes;
+- `ADMIN_TOKEN` — token separado do Control Plane com pelo menos 32 bytes.
+
+Nunca commitar esses segredos no repositório.
 
 ## Banco
 
