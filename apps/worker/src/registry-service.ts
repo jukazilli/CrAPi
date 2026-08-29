@@ -73,9 +73,11 @@ export class RegistryService {
     const startedAt = Date.now();
     const requestId = `req_${crypto.randomUUID()}`;
 
-    const quota = (await this.db.rpc<QuotaRow>('check_api_key_daily_quota', {
-      p_api_key_id: principal.apiKeyId,
-    }))[0];
+    const quota = (
+      await this.db.rpc<QuotaRow>('check_api_key_daily_quota', {
+        p_api_key_id: principal.apiKeyId,
+      })
+    )[0];
 
     if (!quota) {
       return {
@@ -106,11 +108,13 @@ export class RegistryService {
       };
     }
 
-    const registry = (await this.db.rpc<RegistryRow>('lookup_registry_snapshot', {
-      p_council: query.council,
-      p_uf: query.uf,
-      p_normalized_registration: query.registration_number,
-    }))[0];
+    const registry = (
+      await this.db.rpc<RegistryRow>('lookup_registry_snapshot', {
+        p_council: query.council,
+        p_uf: query.uf,
+        p_normalized_registration: query.registration_number,
+      })
+    )[0];
 
     const queriedAt = new Date().toISOString();
     const response: RegistryVerificationResponse = registry

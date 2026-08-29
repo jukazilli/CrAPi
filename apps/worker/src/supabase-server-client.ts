@@ -28,11 +28,7 @@ export class SupabaseServerClient {
     }
   }
 
-  private async request<T>(
-    path: string,
-    init: RequestInit = {},
-    prefer?: string,
-  ): Promise<T> {
+  private async request<T>(path: string, init: RequestInit = {}, prefer?: string): Promise<T> {
     const headers = new Headers(init.headers);
     headers.set('apikey', this.secretKey);
     headers.set('accept', 'application/json');
@@ -60,10 +56,9 @@ export class SupabaseServerClient {
   }
 
   select<T>(table: string, query: URLSearchParams): Promise<T[]> {
-    return this.request<T[]>(
-      `/rest/v1/${encodeURIComponent(table)}?${query.toString()}`,
-      { method: 'GET' },
-    );
+    return this.request<T[]>(`/rest/v1/${encodeURIComponent(table)}?${query.toString()}`, {
+      method: 'GET',
+    });
   }
 
   insert<T>(table: string, body: JsonRecord): Promise<T[]> {

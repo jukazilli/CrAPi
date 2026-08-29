@@ -37,7 +37,8 @@ function html(body: string): Response {
     headers: {
       'content-type': 'text/html; charset=utf-8',
       'cache-control': 'no-store',
-      'content-security-policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      'content-security-policy':
+        "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
       'x-content-type-options': 'nosniff',
       'referrer-policy': 'no-referrer',
     },
@@ -90,7 +91,8 @@ function operationalError(error: unknown): Response {
   if (clientErrors.has(message)) return json({ error: message }, 400);
   if (message === 'API_KEY_NOT_FOUND') return json({ error: message }, 404);
   if (message.includes('SUPABASE_REQUEST_FAILED:409')) return json({ error: 'CONFLICT' }, 409);
-  if (message.includes('SUPABASE_REQUEST_FAILED:400')) return json({ error: 'INVALID_OPERATION' }, 400);
+  if (message.includes('SUPABASE_REQUEST_FAILED:400'))
+    return json({ error: 'INVALID_OPERATION' }, 400);
 
   return json({ error: 'SERVICE_UNAVAILABLE' }, 503);
 }
@@ -226,10 +228,7 @@ const worker: WorkerHandler = {
       return handleAdminApi(request, env, url);
     }
 
-    if (
-      request.method === 'POST' &&
-      url.pathname === '/v1/professional-registrations/verify'
-    ) {
+    if (request.method === 'POST' && url.pathname === '/v1/professional-registrations/verify') {
       return handleRegistryVerify(request, env);
     }
 

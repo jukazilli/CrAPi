@@ -92,7 +92,8 @@ function parseApiKeyInput(input: unknown): CreateApiKeyInput {
 
   const source = input as Record<string, unknown>;
   const name = typeof source.name === 'string' ? source.name.trim() : '';
-  const environment = source.environment === 'LIVE' ? 'LIVE' : source.environment === 'TEST' ? 'TEST' : null;
+  const environment =
+    source.environment === 'LIVE' ? 'LIVE' : source.environment === 'TEST' ? 'TEST' : null;
   const dailyLimit = typeof source.daily_limit === 'number' ? source.daily_limit : 1000;
   const scopes = Array.isArray(source.scopes)
     ? [...new Set(source.scopes.filter((scope): scope is string => typeof scope === 'string'))]
@@ -146,7 +147,8 @@ export class AdminService {
   async listApiKeys(applicationId: string): Promise<Array<ApiKeyRow & { scopes: string[] }>> {
     assertUuid(applicationId);
     const keyQuery = new URLSearchParams({
-      select: 'id,application_id,name,environment,key_prefix,last4,status,daily_limit,expires_at,created_at,revoked_at',
+      select:
+        'id,application_id,name,environment,key_prefix,last4,status,daily_limit,expires_at,created_at,revoked_at',
       application_id: `eq.${applicationId}`,
       order: 'created_at.desc',
     });
@@ -206,19 +208,22 @@ export class AdminService {
   async rotateApiKey(apiKeyId: string, input: unknown) {
     assertUuid(apiKeyId);
     const keyQuery = new URLSearchParams({
-      select: 'id,application_id,name,environment,key_prefix,last4,status,daily_limit,expires_at,created_at',
+      select:
+        'id,application_id,name,environment,key_prefix,last4,status,daily_limit,expires_at,created_at',
       id: `eq.${apiKeyId}`,
       limit: '1',
     });
     const existing = (await this.db.select<ApiKeyRow>('api_keys', keyQuery))[0];
     if (!existing) throw new Error('API_KEY_NOT_FOUND');
 
-    const source = typeof input === 'object' && input !== null && !Array.isArray(input)
-      ? (input as Record<string, unknown>)
-      : {};
-    const name = typeof source.name === 'string' && source.name.trim().length >= 2
-      ? source.name.trim()
-      : `${existing.name} rotation`;
+    const source =
+      typeof input === 'object' && input !== null && !Array.isArray(input)
+        ? (input as Record<string, unknown>)
+        : {};
+    const name =
+      typeof source.name === 'string' && source.name.trim().length >= 2
+        ? source.name.trim()
+        : `${existing.name} rotation`;
     const expiresAt = parseDate(source.expires_at);
     const generated = await generateApiKey(existing.environment, this.apiKeyPepper);
 
