@@ -207,11 +207,25 @@ export const AUTH_CALLBACK_PAGE = String.raw`<!doctype html>
 <script>
 (async () => {
   const status = document.getElementById('status');
+  const currentUrl = new URL(location.href);
+  const requestedNext = currentUrl.searchParams.get('next') || '/admin';
+  const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/admin';
+  const tokenHash = currentUrl.searchParams.get('token_hash') || currentUrl.searchParams.get('token');
+  const type = currentUrl.searchParams.get('type');
+
+  if (tokenHash && type) {
+    const confirmUrl = new URL('/auth/confirm', location.origin);
+    confirmUrl.searchParams.set('token_hash', tokenHash);
+    confirmUrl.searchParams.set('type', type);
+    confirmUrl.searchParams.set('next', next);
+    history.replaceState(null, '', location.pathname);
+    location.replace(confirmUrl.pathname + confirmUrl.search);
+    return;
+  }
+
   const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
   const accessToken = hash.get('access_token');
   const refreshToken = hash.get('refresh_token');
-  const requestedNext = new URL(location.href).searchParams.get('next') || '/admin';
-  const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/admin';
   history.replaceState(null, '', location.pathname + location.search);
   if (!accessToken || !refreshToken) {
     status.textContent = 'Link inválido ou expirado. Solicite um novo acesso.';
