@@ -28,7 +28,8 @@ const patterns = [
   },
   {
     name: 'Assigned Supabase secret',
-    regex: /SUPABASE_(?:SECRET|SERVICE_ROLE)_KEY\s*=\s*[^\s#<][^\n]*/g,
+    regex:
+      /SUPABASE_(?:SECRET|SERVICE_ROLE)_KEY\s*=\s*(?!\$\{\{\s*secrets\.)(?!["']?%s(?:\\n)?["']?)[^\s#<][^\n]*/g,
   },
 ];
 
