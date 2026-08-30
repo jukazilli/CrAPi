@@ -160,6 +160,19 @@ jobs:
             exit 1
           fi
 
+          login_status="$(curl --silent --show-error --output "$RUNNER_TEMP/login-response.json" --write-out '%{http_code}' \
+            --request POST "$DEPLOYMENT_URL/auth/login" \
+            --header 'content-type: application/json' \
+            --header "origin: $DEPLOYMENT_URL" \
+            --data '{"email":"crapi-login-smoke@example.invalid","password":"CrAPi-Login-Smoke-123!"}')"
+          echo "/auth/login POST invalid credentials -> HTTP $login_status"
+          if [ "$login_status" != '401' ]; then
+            cat "$RUNNER_TEMP/login-response.json"
+            echo
+            echo "::error::POST /auth/login returned HTTP $login_status instead of 401."
+            exit 1
+          fi
+
           native_signup_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
             --request POST "$DEPLOYMENT_URL/auth/signup" \
             --header 'content-type: application/x-www-form-urlencoded' \
