@@ -15,9 +15,12 @@ export class AdminAuthorizationService {
   constructor(private readonly db: SupabaseServerClient) {}
 
   async getMembership(userId: string): Promise<AdminMembership | null> {
-    const rows = await this.db.rpc<AdminMembership>('lookup_admin_membership', {
-      p_user_id: userId,
+    const query = new URLSearchParams({
+      select: 'user_id,role,status,created_at,updated_at',
+      user_id: `eq.${userId}`,
+      limit: '1',
     });
+    const rows = await this.db.select<AdminMembership>('admin_memberships', query);
     return rows[0] ?? null;
   }
 
