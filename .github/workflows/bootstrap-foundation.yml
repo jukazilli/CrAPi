@@ -81,22 +81,38 @@ jobs:
 
       - name: Deploy Worker and runtime secrets
         id: deploy
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          packageManager: pnpm
-          command: deploy --config apps/worker/wrangler.jsonc
-          secrets: |
-            SUPABASE_SECRET_KEY
-            API_KEY_PEPPER
-            ADMIN_TOKEN
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           API_KEY_PEPPER: ${{ secrets.API_KEY_PEPPER }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          secrets_file="$RUNNER_TEMP/crapi-staging.secrets"
+          output_file="$RUNNER_TEMP/wrangler-output.log"
+          umask 077
+          {
+            printf 'SUPABASE_SECRET_KEY=%s\n' "$SUPABASE_SECRET_KEY"
+            printf 'API_KEY_PEPPER=%s\n' "$API_KEY_PEPPER"
+            printf 'ADMIN_TOKEN=%s\n' "$ADMIN_TOKEN"
+          } > "$secrets_file"
+          trap 'rm -f "$secrets_file" "$output_file"' EXIT
+
+          pnpm dlx wrangler@4.127.1 deploy \
+            --config apps/worker/wrangler.jsonc \
+            --secrets-file "$secrets_file" 2>&1 | tee "$output_file"
+
+          deployment_url="$(grep -Eo 'https://[^[:space:]]+\.workers\.dev' "$output_file" | tail -n 1 || true)"
+          if [ -n "$deployment_url" ]; then
+            echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Publish staging URL
         run: |
           echo "### CrAPi staging" >> "$GITHUB_STEP_SUMMARY"
-          echo "${{ steps.deploy.outputs.deployment-url }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${{ steps.deploy.outputs.deployment_url }}" ]; then
+            echo "${{ steps.deploy.outputs.deployment_url }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Worker deployed; inspect Wrangler output for the assigned workers.dev route." >> "$GITHUB_STEP_SUMMARY"
+          fi
