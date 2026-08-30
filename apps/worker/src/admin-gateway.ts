@@ -89,9 +89,7 @@ function sameOrigin(request: Request): boolean {
   return request.headers.get('sec-fetch-site') !== 'cross-site';
 }
 
-function configured(
-  env: Env,
-): env is Env & {
+function configured(env: Env): env is Env & {
   SUPABASE_URL: string;
   SUPABASE_PUBLISHABLE_KEY: string;
   SUPABASE_SECRET_KEY: string;
@@ -173,7 +171,10 @@ async function authorizeHuman(request: Request, env: Env, requestId: string) {
     if (!session.user) {
       return {
         ok: false as const,
-        response: appendSetCookies(json({ error: 'UNAUTHORIZED' }, 401, requestId), session.setCookies),
+        response: appendSetCookies(
+          json({ error: 'UNAUTHORIZED' }, 401, requestId),
+          session.setCookies,
+        ),
       };
     }
     return { ok: true as const, env, session };
@@ -225,10 +226,14 @@ async function handleMembersApi(request: Request, env: Env, url: URL): Promise<R
           authorized.session.setCookies,
         );
       }
-      const result = await rpc<AdminMembershipRow>(authorized.env, 'grant_admin_membership_by_email', {
-        p_actor_user_id: actorId,
-        p_email: email,
-      });
+      const result = await rpc<AdminMembershipRow>(
+        authorized.env,
+        'grant_admin_membership_by_email',
+        {
+          p_actor_user_id: actorId,
+          p_email: email,
+        },
+      );
       if (!result.ok) {
         return appendSetCookies(
           json({ error: result.code }, statusForAdminError(result.code), requestId),
@@ -244,7 +249,11 @@ async function handleMembersApi(request: Request, env: Env, url: URL): Promise<R
     const revokeMatch = /^\/admin\/api\/members\/([^/]+)\/revoke$/.exec(url.pathname);
     if (request.method === 'POST' && revokeMatch) {
       const targetUserId = decodeURIComponent(revokeMatch[1] ?? '');
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetUserId)) {
+      if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          targetUserId,
+        )
+      ) {
         return appendSetCookies(
           json({ error: 'INVALID_USER_ID' }, 400, requestId),
           authorized.session.setCookies,
@@ -476,7 +485,10 @@ async function handleAdminPage(request: Request, env: Env): Promise<Response> {
       );
     }
 
-    return appendSetCookies(html(enhancedAdminPage(), 200, requestId), authorized.session.setCookies);
+    return appendSetCookies(
+      html(enhancedAdminPage(), 200, requestId),
+      authorized.session.setCookies,
+    );
   } catch (error) {
     console.error(
       JSON.stringify({
@@ -520,7 +532,9 @@ async function handleDatabaseProbe(request: Request, env: Env): Promise<Response
     return json(
       {
         error: 'SERVICE_UNAVAILABLE',
-        diagnostics: { runtime_error: safeString(error instanceof Error ? error.message : 'UNKNOWN_ERROR') },
+        diagnostics: {
+          runtime_error: safeString(error instanceof Error ? error.message : 'UNKNOWN_ERROR'),
+        },
       },
       503,
       requestId,

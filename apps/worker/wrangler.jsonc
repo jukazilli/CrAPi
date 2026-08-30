@@ -8,9 +8,9 @@
   "vars": {
     "APP_ENV": "staging",
     "SUPABASE_URL": "https://nxwqlxrdgpepscwjprym.supabase.co",
-    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_C-Me5t0HhEktkRPfJuEjnA_Cgo1-EpV"
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_C-Me5t0HhEktkRPfJuEjnA_Cgo1-EpV",
   },
   "secrets": {
-    "required": ["SUPABASE_SECRET_KEY", "API_KEY_PEPPER", "ADMIN_TOKEN"]
-  }
+    "required": ["SUPABASE_SECRET_KEY", "API_KEY_PEPPER", "ADMIN_TOKEN"],
+  },
 }
