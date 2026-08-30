@@ -1,3 +1,4 @@
-triggered_at=2026-08-30T02:18:00-03:00
+triggered_at=2026-08-30T02:22:00-03:00
 purpose=configure-supabase-auth-resend
-attempt=3
+attempt=4
+sender=no-reply@soberania.tech
