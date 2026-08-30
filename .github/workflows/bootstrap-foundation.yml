@@ -137,6 +137,17 @@ jobs:
           assert_http '/admin' '303'
           assert_http '/admin/api/applications' '401'
 
+          signup_status="$(curl --silent --show-error --output "$RUNNER_TEMP/signup-response.json" --write-out '%{http_code}' \
+            --request POST "$DEPLOYMENT_URL/auth/signup" \
+            --header 'content-type: application/json' \
+            --data '{"email":"invalid","password":"invalid"}')"
+          echo "/auth/signup POST invalid payload -> HTTP $signup_status"
+          if [ "$signup_status" != '400' ]; then
+            cat "$RUNNER_TEMP/signup-response.json"
+            echo "::error::POST /auth/signup returned HTTP $signup_status instead of 400."
+            exit 1
+          fi
+
       - name: Publish staging URL
         run: |
           echo "### CrAPi staging" >> "$GITHUB_STEP_SUMMARY"
