@@ -131,11 +131,14 @@ jobs:
 
           assert_http '/health' '200'
           assert_http '/ready' '200'
-          assert_http '/admin' '200'
+          assert_http '/login' '200'
+          assert_http '/criar-conta' '200'
+          assert_http '/recuperar-senha' '200'
+          assert_http '/admin' '303'
           assert_http '/admin/api/applications' '401'
 
       - name: Publish staging URL
         run: |
           echo "### CrAPi staging" >> "$GITHUB_STEP_SUMMARY"
           echo "${{ steps.deploy.outputs.deployment_url }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Hosted smoke tests: passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "Hosted auth/control-plane smoke tests: passed" >> "$GITHUB_STEP_SUMMARY"
