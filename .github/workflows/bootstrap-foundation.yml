@@ -150,9 +150,8 @@ jobs:
           console.log('Supabase default secret key resolved and Data API validation passed.');
           NODE
 
-          SUPABASE_SECRET_KEY="$(cat "$secret_key_file")"
           {
-            printf 'SUPABASE_SECRET_KEY=%s\n' "$SUPABASE_SECRET_KEY"
+            printf 'SUPABASE_SECRET_KEY=%s\n' "$(cat "$secret_key_file")"
             printf 'API_KEY_PEPPER=%s\n' "$API_KEY_PEPPER"
             printf 'ADMIN_TOKEN=%s\n' "$ADMIN_TOKEN"
           } > "$secrets_file"
