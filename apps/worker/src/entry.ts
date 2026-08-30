@@ -191,7 +191,8 @@ function signupDiagnosticBody(
 ) {
   return {
     error: status >= 500 ? 'SERVICE_UNAVAILABLE' : 'SIGNUP_FAILED',
-    message: status >= 500 ? 'Falha no serviço de autenticação.' : 'Não foi possível criar a conta.',
+    message:
+      status >= 500 ? 'Falha no serviço de autenticação.' : 'Não foi possível criar a conta.',
     request_id: requestId,
     ...(status >= 500
       ? {
@@ -317,7 +318,9 @@ async function handleDiagnosticSignup(request: Request, env: Env, url: URL): Pro
     return tokens ? appendSetCookies(response, sessionCookies(tokens)) : response;
   } catch (error) {
     const code = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
-    if (['INVALID_EMAIL', 'INVALID_PASSWORD', 'INVALID_BODY', 'JSON_OR_FORM_REQUIRED'].includes(code)) {
+    if (
+      ['INVALID_EMAIL', 'INVALID_PASSWORD', 'INVALID_BODY', 'JSON_OR_FORM_REQUIRED'].includes(code)
+    ) {
       return jsonWithRequestId({ error: code, request_id: requestId }, 400, requestId);
     }
 
@@ -421,7 +424,10 @@ async function handleNativeAuthPost(request: Request, env: Env, url: URL): Promi
     if (response.ok) {
       const redirected = redirect(nativeSuccessDestination(url.pathname, body));
       const headers = new Headers(redirected.headers);
-      headers.set('x-crapi-request-id', response.headers.get('x-crapi-request-id') ?? 'unknown');
+      headers.set(
+        'x-crapi-request-id',
+        response.headers.get('x-crapi-request-id') ?? 'unknown',
+      );
       for (const cookie of response.headers.getSetCookie?.() ?? []) {
         headers.append('set-cookie', cookie);
       }
@@ -430,7 +436,9 @@ async function handleNativeAuthPost(request: Request, env: Env, url: URL): Promi
 
     const page = authPageByPath[url.pathname] ?? '/login';
     const requestId = response.headers.get('x-crapi-request-id') ?? 'unknown';
-    return redirect(`${page}?auth_error=${response.status}&request_id=${encodeURIComponent(requestId)}`);
+    return redirect(
+      `${page}?auth_error=${response.status}&request_id=${encodeURIComponent(requestId)}`,
+    );
   }
 
   const form = await request.formData();
