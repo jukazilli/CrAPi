@@ -6,11 +6,14 @@ export const ADMIN_PAGE = String.raw`<!doctype html>
   <title>CrAPi Control Plane</title>
   <style>
     :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color-scheme: light dark; }
+    * { box-sizing: border-box; }
     body { margin: 0; background: Canvas; color: CanvasText; }
     main { width: min(1080px, calc(100% - 32px)); margin: 40px auto; }
-    header { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 28px; }
+    header { display: flex; justify-content: space-between; gap: 24px; align-items: center; margin-bottom: 28px; }
     h1, h2, p { margin-top: 0; }
     .muted { opacity: .65; }
+    .session { text-align: right; }
+    .session .status { font-size: 13px; opacity: .62; margin-bottom: 8px; }
     .grid { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.4fr); gap: 20px; }
     .card { border: 1px solid color-mix(in srgb, CanvasText 16%, transparent); border-radius: 18px; padding: 20px; background: color-mix(in srgb, Canvas 96%, CanvasText 4%); }
     label { display: block; font-size: 13px; margin: 14px 0 6px; opacity: .75; }
@@ -22,7 +25,6 @@ export const ADMIN_PAGE = String.raw`<!doctype html>
     button.danger { background: color-mix(in srgb, #d22 17%, transparent); color: #d33; }
     .row { display: flex; gap: 10px; align-items: center; }
     .row > * { flex: 1; }
-    .stack { display: grid; gap: 10px; }
     .item { border-top: 1px solid color-mix(in srgb, CanvasText 12%, transparent); padding: 14px 0; }
     .item:first-child { border-top: 0; }
     .item-head { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
@@ -34,7 +36,7 @@ export const ADMIN_PAGE = String.raw`<!doctype html>
     #secret { background: color-mix(in srgb, #0a8 13%, transparent); }
     #secret pre { white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
     .empty { opacity: .55; padding: 18px 0; }
-    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } header { display: block; } }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } header { display: block; } .session { text-align: left; margin-top: 18px; } }
   </style>
 </head>
 <body>
@@ -43,14 +45,11 @@ export const ADMIN_PAGE = String.raw`<!doctype html>
     <div>
       <div class="muted">Professional Registry</div>
       <h1>CrAPi Control Plane</h1>
-      <p class="muted">Checkpoint operacional: aplicações, API Keys, rotação e revogação.</p>
+      <p class="muted">Applications, API Keys, rotação e revogação.</p>
     </div>
-    <div style="min-width:280px">
-      <label for="token">Admin token</label>
-      <div class="row">
-        <input id="token" type="password" autocomplete="off" placeholder="Cole o token de staging" />
-        <button id="connect" class="primary" style="flex:0 0 auto">Conectar</button>
-      </div>
+    <div class="session">
+      <div class="status">Sessão autenticada · acesso administrativo ativo</div>
+      <button id="logout" class="ghost">Sair</button>
     </div>
   </header>
 
@@ -71,7 +70,7 @@ export const ADMIN_PAGE = String.raw`<!doctype html>
         <input id="appSlug" required pattern="[a-z0-9][a-z0-9_-]{1,62}" placeholder="daygym-staging" />
         <button class="primary" style="margin-top:14px;width:100%">Criar aplicação</button>
       </form>
-      <div id="applications" style="margin-top:18px"><div class="empty">Conecte para carregar.</div></div>
+      <div id="applications" style="margin-top:18px"><div class="empty">Carregando...</div></div>
     </section>
 
     <section class="card">
@@ -102,7 +101,6 @@ export const ADMIN_PAGE = String.raw`<!doctype html>
 </main>
 <script>
 (() => {
-  let adminToken = '';
   let selectedApplication = null;
   const $ = (id) => document.getElementById(id);
 
@@ -120,10 +118,13 @@ export const ADMIN_PAGE = String.raw`<!doctype html>
       ...(options || {}),
       headers: {
         'content-type': 'application/json',
-        'x-crapi-admin-token': adminToken,
         ...((options && options.headers) || {})
       }
     });
+    if (response.status === 401) {
+      location.replace('/login');
+      throw new Error('Sessão expirada.');
+    }
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.message || body.error || ('HTTP ' + response.status));
     return body;
@@ -230,14 +231,6 @@ export const ADMIN_PAGE = String.raw`<!doctype html>
     });
   }
 
-  $('connect').onclick = async () => {
-    adminToken = $('token').value;
-    try {
-      await loadApplications();
-      $('token').value = '';
-    } catch (error) { notice('Não foi possível autenticar: ' + error.message); }
-  };
-
   $('applicationForm').onsubmit = async (event) => {
     event.preventDefault();
     try {
@@ -273,6 +266,13 @@ export const ADMIN_PAGE = String.raw`<!doctype html>
     $('copySecret').textContent = 'Copiado';
     setTimeout(() => { $('copySecret').textContent = 'Copiar chave'; }, 1200);
   };
+
+  $('logout').onclick = async () => {
+    await fetch('/auth/logout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    location.replace('/login');
+  };
+
+  loadApplications().catch((error) => notice(error.message));
 })();
 </script>
 </body>
