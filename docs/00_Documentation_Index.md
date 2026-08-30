@@ -14,7 +14,8 @@ Data: 2026-08-30
 7. `ProfessionalRegistry_07_Arquitetura_e_Engenharia.md` — arquitetura Database-first, Supabase Auth, memberships, Data Plane e Sync Engine.
 8. `ProfessionalRegistry_08_Backlog_Canonico_Rastreabilidade_e_Plano_de_Entrega.md` — requisitos, backlog e evidências; fonte canônica atual do status de execução.
 9. `ProfessionalRegistry_08_Matriz_de_Rastreabilidade_e_Backlog.xlsx` — matriz detalhada criada anteriormente; requer sincronização explícita para refletir mudanças mais recentes do backlog Markdown.
-10. `Principios_de_UX_UI.md` — princípios transversais de UX/UI.
+10. `ProfessionalRegistry_09_Email_Auth_Resend.md` — Resend como SMTP customizado do Supabase Auth, domínio transacional, templates e configuração reproduzível.
+11. `Principios_de_UX_UI.md` — princípios transversais de UX/UI.
 
 ## Documentos técnicos de apoio
 
@@ -28,6 +29,7 @@ Data: 2026-08-30
 - Fonte operacional: Registry Store próprio em Supabase PostgreSQL.
 - Aquisição: Database-first + Scheduled Synchronization + On-demand Refresh.
 - Identidade humana: Supabase Auth.
+- E-mails de autenticação: Resend via SMTP customizado do Supabase Auth.
 - Autorização administrativa: `admin_memberships` com OWNER/ADMIN.
 - Autenticação de aplicações: API Keys próprias `prk_test_*` / `prk_live_*`.
 - Login humano nunca substitui API Key do Data Plane.
