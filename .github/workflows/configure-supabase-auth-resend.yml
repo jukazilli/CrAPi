@@ -24,7 +24,7 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-      SOBERANIA_AUTH_FROM: crapi@auth.soberania.tech
+      SOBERANIA_AUTH_FROM: no-reply@soberania.tech
       SUPABASE_PROJECT_REF: nxwqlxrdgpepscwjprym
 
     steps:
@@ -43,7 +43,7 @@ jobs:
       - name: Checkout reviewed Auth configuration
         uses: actions/checkout@v4
         with:
-          ref: 68d056eb21f4257028ee050a58c63f611ffd7e2f
+          ref: 8f1603ef027b5596aa86711774e8a090fa0336a5
           persist-credentials: false
 
       - name: Apply Resend SMTP and Auth templates
@@ -67,7 +67,7 @@ jobs:
           $checks = @(
             @{ Name = 'external_email_enabled'; Actual = $config.external_email_enabled; Expected = $true },
             @{ Name = 'mailer_autoconfirm'; Actual = $config.mailer_autoconfirm; Expected = $false },
-            @{ Name = 'smtp_admin_email'; Actual = $config.smtp_admin_email; Expected = 'crapi@auth.soberania.tech' },
+            @{ Name = 'smtp_admin_email'; Actual = $config.smtp_admin_email; Expected = 'no-reply@soberania.tech' },
             @{ Name = 'smtp_host'; Actual = $config.smtp_host; Expected = 'smtp.resend.com' },
             @{ Name = 'smtp_port'; Actual = [int]$config.smtp_port; Expected = 465 },
             @{ Name = 'smtp_user'; Actual = $config.smtp_user; Expected = 'resend' },
@@ -95,7 +95,7 @@ jobs:
 
           msg = EmailMessage()
           msg['Subject'] = 'CrAPi SMTP verification'
-          msg['From'] = 'CrAPi | Soberania Tech <crapi@auth.soberania.tech>'
+          msg['From'] = 'CrAPi | Soberania Tech <no-reply@soberania.tech>'
           msg['To'] = 'delivered@resend.dev'
           msg.set_content('CrAPi cloud SMTP verification through Resend.')
 
@@ -116,7 +116,7 @@ jobs:
           ✅ Supabase Auth configured to use Resend SMTP.
 
           - Project: `cr-api`
-          - Sender: `CrAPi | Soberania Tech <crapi@auth.soberania.tech>`
+          - Sender: `CrAPi | Soberania Tech <no-reply@soberania.tech>`
           - SMTP host: `smtp.resend.com:465`
           - E-mail confirmation: enabled
           - Auto-confirm: disabled
