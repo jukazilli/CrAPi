@@ -138,9 +138,14 @@ jobs:
           assert_http '/admin/api/applications' '401'
           assert_http '/auth/signup' '303'
           assert_http '/debug/auth/settings' '200'
+          assert_http '/debug/db/authorization' '200'
 
           echo 'Auth settings diagnostic:'
           curl --silent --show-error --fail "$DEPLOYMENT_URL/debug/auth/settings"
+          echo
+
+          echo 'Database authorization diagnostic:'
+          curl --silent --show-error --fail "$DEPLOYMENT_URL/debug/db/authorization"
           echo
 
           curl --silent --show-error --fail "$DEPLOYMENT_URL/criar-conta" > "$RUNNER_TEMP/signup-page.html"
