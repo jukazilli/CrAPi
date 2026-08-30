@@ -1,5 +1,6 @@
 {
   "name": "crapi-staging",
+  // Confirmation and resend are handled before the main application routes.
   "main": "./src/auth-gateway.ts",
   "compatibility_date": "2026-08-29",
   "workers_dev": true,
