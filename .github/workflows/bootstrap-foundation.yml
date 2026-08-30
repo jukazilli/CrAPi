@@ -184,16 +184,14 @@ jobs:
             exit 1
           fi
 
-          upstream_probe_status="$(curl --silent --show-error --output "$RUNNER_TEMP/auth-upstream-probe.json" --write-out '%{http_code}' \
-            --request POST "$DEPLOYMENT_URL/auth/signup" \
-            --header 'content-type: application/json' \
-            --header 'x-request-id: ci-auth-upstream-probe' \
-            --data '{"email":"crapi-debug@example.invalid","password":"CrAPi-Debug-Only-123!"}')"
-          echo "/auth/signup upstream diagnostic probe -> HTTP $upstream_probe_status"
-          cat "$RUNNER_TEMP/auth-upstream-probe.json"
-          echo
-          if [ "$upstream_probe_status" != '400' ]; then
-            echo "::error::Auth upstream diagnostic probe returned HTTP $upstream_probe_status instead of 400."
+          native_login_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --request POST "$DEPLOYMENT_URL/auth/login" \
+            --header 'content-type: application/x-www-form-urlencoded' \
+            --data-urlencode 'email=invalid' \
+            --data-urlencode 'password=invalid')"
+          echo "/auth/login native form invalid payload -> HTTP $native_login_status"
+          if [ "$native_login_status" != '303' ]; then
+            echo "::error::Native browser login fallback returned HTTP $native_login_status instead of 303."
             exit 1
           fi
 
