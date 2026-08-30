@@ -39,7 +39,12 @@ function redirect(location: string, status = 303, requestId?: string): Response 
   return new Response(null, { status, headers });
 }
 
-function json(body: unknown, status: number, requestId: string, retryAfter?: string | null): Response {
+function json(
+  body: unknown,
+  status: number,
+  requestId: string,
+  retryAfter?: string | null,
+): Response {
   const headers = new Headers({
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',
@@ -80,7 +85,9 @@ function readTokens(body: JsonRecord): AuthTokens | null {
   };
 }
 
-function authReady(env: Env): env is Env & { SUPABASE_URL: string; SUPABASE_PUBLISHABLE_KEY: string } {
+function authReady(
+  env: Env,
+): env is Env & { SUPABASE_URL: string; SUPABASE_PUBLISHABLE_KEY: string } {
   return Boolean(env.SUPABASE_URL && env.SUPABASE_PUBLISHABLE_KEY);
 }
 
@@ -121,10 +128,21 @@ async function handleConfirmation(request: Request, env: Env, url: URL): Promise
   const tokenHash = url.searchParams.get('token_hash') ?? '';
   const type = url.searchParams.get('type') ?? '';
   const next = safeInternalPath(url.searchParams.get('next'), '/admin');
-  const allowedTypes = new Set(['email', 'signup', 'recovery', 'magiclink', 'invite', 'email_change']);
+  const allowedTypes = new Set([
+    'email',
+    'signup',
+    'recovery',
+    'magiclink',
+    'invite',
+    'email_change',
+  ]);
 
   if (!tokenHash || !allowedTypes.has(type)) {
-    return redirect(`/login?auth_error=invalid_link&request_id=${encodeURIComponent(requestId)}`, 303, requestId);
+    return redirect(
+      `/login?auth_error=invalid_link&request_id=${encodeURIComponent(requestId)}`,
+      303,
+      requestId,
+    );
   }
 
   try {
@@ -264,7 +282,8 @@ async function handleResend(request: Request, env: Env, url: URL): Promise<Respo
     return json(
       {
         ok: true,
-        message: 'Se houver um cadastro pendente para este e-mail, uma nova confirmação será enviada.',
+        message:
+          'Se houver um cadastro pendente para este e-mail, uma nova confirmação será enviada.',
       },
       200,
       requestId,
@@ -361,13 +380,21 @@ async function addResendLinkToLogin(response: Response): Promise<Response> {
   if (!response.ok || !contentType.includes('text/html')) return response;
   const source = await response.text();
   if (source.includes(RESEND_PAGE_PATH)) {
-    return new Response(source, { status: response.status, statusText: response.statusText, headers: response.headers });
+    return new Response(source, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
   }
   const enhanced = source.replace(
     '</section>',
     `<p class="links"><a href="${RESEND_PAGE_PATH}">Reenviar e-mail de confirmação</a></p></section>`,
   );
-  return new Response(enhanced, { status: response.status, statusText: response.statusText, headers: response.headers });
+  return new Response(enhanced, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
 }
 
 const gateway = {
@@ -384,7 +411,8 @@ const gateway = {
         headers: {
           'content-type': 'text/html; charset=utf-8',
           'cache-control': 'no-store',
-          'content-security-policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+          'content-security-policy':
+            "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
           'x-content-type-options': 'nosniff',
           'referrer-policy': 'no-referrer',
         },
