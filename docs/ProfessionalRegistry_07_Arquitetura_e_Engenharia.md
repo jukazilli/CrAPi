@@ -1,7 +1,7 @@
 # Professional Registry — Arquitetura e Engenharia
 
-Status: Canônico v0.2  
-Data: 2026-08-29
+Status: Canônico v0.3  
+Data: 2026-08-30
 
 ## 1. Arquitetura lógica
 
@@ -30,7 +30,11 @@ A arquitetura oficial é **Database-first + Scheduled Synchronization + On-deman
                  Daygym     Stude.ai
 
                        CONTROL PLANE
-Admin -> Cloudflare Access -> Console SPA -> Admin Routes
+User -> Supabase Auth -> HttpOnly session -> Worker
+                                      |
+                              admin_memberships
+                                      |
+                                  OWNER/ADMIN
                                       |
                                       v
                               Registry / Sync / Keys
@@ -48,7 +52,8 @@ Elas não conhecem:
 - provider concreto;
 - scraper/parser;
 - credenciais upstream;
-- circuit breaker.
+- circuit breaker;
+- sessão ou JWT administrativo.
 
 Nenhum consumidor acessa o Supabase diretamente.
 
@@ -86,6 +91,7 @@ Nenhum consumidor acessa o Supabase diretamente.
 - Single Flight: refreshes idênticos concorrentes.
 - Repository: persistência Supabase/PostgreSQL.
 - Ports and Adapters: transporte e fonte não invadem o domínio.
+- Authentication != Authorization: Supabase Auth identifica; `admin_memberships` autoriza.
 
 ## 5. Autenticação de aplicações
 
@@ -105,11 +111,43 @@ API Keys próprias do CrAPi:
 
 A API Key do CrAPi nunca é uma credencial Supabase. Não usar key privilegiada em browser/mobile distribuído; o backend consumidor chama a Registry API.
 
-## 6. Autenticação administrativa
+Um JWT emitido pelo Supabase Auth para uma pessoa **não é** aceito como API Key do Data Plane.
 
-Cloudflare Access é a barreira inicial do Control Plane.
+## 6. Autenticação e autorização administrativa
 
-O Control Plane nunca aceita API Key de aplicação como sessão administrativa. A UI não recebe `SUPABASE_SECRET_KEY` nem conecta diretamente ao banco.
+Supabase Auth é a identidade humana primária do Control Plane.
+
+Fluxo:
+
+```text
+criar conta/login
+      |
+      v
+Supabase Auth
+      |
+      v
+Worker valida sessão server-side
+      |
+      v
+admin_memberships
+      |
+      +-- OWNER/ADMIN ACTIVE -> Control Plane
+      +-- ausente/revogada -> 403
+```
+
+Regras:
+- sessões usam cookies `__Host-*`, `HttpOnly`, `Secure` e `SameSite=Strict`;
+- access token é validado contra Supabase Auth antes de confiar na identidade;
+- refresh token é utilizado server-side para renovar sessão expirada;
+- mutações auth/admin são same-origin;
+- o browser não recebe `SUPABASE_SECRET_KEY`;
+- `admin_memberships` é a fonte de autorização, não o fato de possuir conta;
+- o primeiro OWNER é reivindicado uma única vez com sessão válida + `ADMIN_TOKEN` de bootstrap/break-glass;
+- banco serializa o bootstrap por advisory transaction lock;
+- após o bootstrap, o `ADMIN_TOKEN` não participa do login normal;
+- API Key de aplicação nunca é aceita como sessão administrativa.
+
+Cloudflare Access pode ser adicionado como perímetro/segunda barreira em produção, mas não é o mecanismo primário de login do produto.
 
 ## 7. Banco — Supabase PostgreSQL
 
@@ -117,14 +155,18 @@ Supabase é o banco exclusivo do CrAPi. A fundação usa Data API/PostgREST sobr
 
 Regras:
 - migrations em `supabase/migrations`;
-- RLS habilitado em todas as tabelas operacionais;
-- sem grants/policies para `anon` e `authenticated` na fundação;
+- RLS habilitado em todas as tabelas operacionais/administrativas;
+- sem grants/policies para `anon` e `authenticated` nas tabelas do CrAPi;
 - credencial privilegiada somente no secret store do Worker;
+- `SUPABASE_PUBLISHABLE_KEY` pode ser pública e é usada somente para Auth;
 - índices em chaves de lookup e filtros operacionais;
 - consultas parametrizadas/estruturadas;
-- aplicações consumidoras não conhecem URL/chave do banco.
+- aplicações consumidoras não conhecem URL/chave privilegiada do banco.
 
 Entidades centrais:
+
+### admin_memberships
+Liga `auth.users.id` aos papéis administrativos `OWNER`/`ADMIN` e ao status de autorização. Login sem membership não concede acesso.
 
 ### applications
 Identidade de consumidor.
@@ -226,7 +268,8 @@ Status profissional é eixo separado e pode ser `UNKNOWN`.
 - response size limit;
 - parser failure isolada;
 - último snapshot válido preservado;
-- banco indisponível => fail closed/readiness degradada, sem fallback inseguro.
+- banco indisponível => fail closed/readiness degradada, sem fallback inseguro;
+- Auth indisponível => novas autenticações/admin fail closed, sem bypass por token estático na UI.
 
 ## 13. Ambientes
 
@@ -237,6 +280,7 @@ Status profissional é eixo separado e pode ser `UNKNOWN`.
 Cada ambiente possui:
 - Worker próprio;
 - configuração/credencial Supabase próprias ou isolamento aprovado;
+- configuração de Auth Redirect URL própria;
 - API Keys próprias;
 - secrets;
 - domínio;
@@ -251,6 +295,8 @@ Fluxo alvo:
 `branch -> PR -> CI -> staging -> evidência -> main -> production`
 
 Produção deve promover commit/artefato comprovado. Migration criada no Git não é considerada aplicada até validação no projeto correspondente.
+
+Smoke de staging valida atualmente health/readiness, superfícies de login/cadastro/recuperação, redirect do `/admin` sem sessão e 401 da API administrativa sem sessão.
 
 ## 15. Scheduler
 
