@@ -1,6 +1,6 @@
 # Professional Registry — Backlog Canônico, Rastreabilidade e Plano de Entrega
 
-Status: Fundação v0.1
+Status: Fundação v0.2
 
 A matriz detalhada está em `ProfessionalRegistry_08_Matriz_de_Rastreabilidade_e_Backlog.xlsx`.
 
@@ -9,8 +9,8 @@ A matriz detalhada está em `ProfessionalRegistry_08_Matriz_de_Rastreabilidade_e
 ### M0 — Fundação e governança
 Objetivo: repositório reproduzível, contratos, CI, ambientes e documentação canônica.
 
-### M1 — Segurança e identidade de aplicações
-Objetivo: Applications, API Keys, scopes, quotas, redaction e Control Plane protegido.
+### M1 — Segurança, identidade e autorização
+Objetivo: contas humanas, memberships administrativas, Applications, API Keys, scopes, quotas, redaction e Control Plane protegido.
 
 ### M2 — Registry Store, Sync Engine e CREF
 Objetivo: endpoint unificado, banco local canônico, sync periódico, provider mock -> provider HTTP, parser, freshness e resiliência.
@@ -43,39 +43,60 @@ Objetivo: integração real com primeiro consumidor, staging/production, observa
 - PR-REQ-018: histórico e freshness dos registros.
 - PR-REQ-019: on-demand refresh para miss/stale.
 - PR-REQ-020: full sync somente quando a fonte expõe enumeração/listagem apropriada.
+- PR-REQ-021: Control Plane exige conta humana com cadastro, login, recuperação e sessão segura.
+- PR-REQ-022: autenticação humana não implica autorização; somente membership administrativa ativa libera o Control Plane.
+- PR-REQ-023: JWT humano nunca autentica o Data Plane; Registry API aceita apenas credencial de Application autorizada.
 
-## Estado de execução — 29/08/2026
+## Estado de execução — 30/08/2026
 
 | Backlog ID | Status | Evidência |
 | --- | --- | --- |
 | PR-M0-001 | Done | Documentação canônica e `AGENTS.md` versionados. |
 | PR-M0-002 | Done | Node/pnpm fixos, workspaces, lockfile congelado e toolchain reproduzível. |
 | PR-M0-003 | Done | GitHub Actions executa format, toolchain, lint, typecheck, test, build, secret scan e dependency audit com sucesso. |
-| PR-M0-004 | Done | `crapi-staging` publicado em Cloudflare Workers via GitHub Actions; `/health`, `/ready` e `/admin` respondem 200 e a API administrativa sem token responde 401 no smoke test hospedado. |
+| PR-M0-004 | Done | `crapi-staging` publicado em Cloudflare Workers via GitHub Actions; `/health` e `/ready` respondem 200, telas de Auth respondem 200, `/admin` sem sessão redireciona para `/login` e a API administrativa sem sessão responde 401. |
 | PR-M0-005 | Done | Registry Contract V1 tipado, normalização e testes presentes. |
-| PR-M1-001 | Done | Schema Supabase aplicado, 14 tabelas com RLS, grants restritos e advisors revisados. |
+| PR-M1-001 | Done | Schema Supabase aplicado, 15 tabelas com RLS, grants restritos e advisors revisados. |
 | PR-M1-002 | In Progress | Lifecycle create/list/rotate/revoke implementado com RPCs server-only e raw key one-time; ciclo manual hospedado ainda precisa ser provado. |
 | PR-M1-003 | In Progress | Middleware + lookup Supabase + endpoint protegido real implementados e passando CI; ciclo create-key -> verify hospedado ainda precisa ser provado. |
 | PR-M1-004 | In Progress | Scope `registry:verify` aplicado na rota real; prova com API Key emitida no staging ainda pendente. |
 | PR-M1-005 | In Progress | Quota diária implementada para o checkpoint; reserva atômica sob concorrência será endurecida antes do beta. |
-| PR-M1-006 | In Progress | Control Plane mínimo publicado e navegável em `/admin`; login e lifecycle manual são o próximo checkpoint de aceite. |
+| PR-M1-006 | In Progress | Control Plane publicado com sessão Supabase Auth + `admin_memberships`; bootstrap manual do primeiro OWNER e ciclo administrativo autenticado ainda precisam de aceite. |
+| PR-M1-007 | In Progress | Cadastro, login, confirmação/callback, recuperação, redefinição e refresh de sessão implementados; smoke hospedado cobre superfícies públicas e proteção sem sessão, enquanto o E2E de e-mail depende da URL de Auth configurada no Supabase. |
 | PR-M2-001 | In Progress | Slice database-first implementado: Registry Store hit retorna snapshot; miss retorna `INCONCLUSIVE` até on-demand refresh/provider. |
+
+### Modelo de autenticação e autorização
+
+O CrAPi possui duas fronteiras independentes:
+
+1. **Humano / Control Plane:** Supabase Auth identifica a pessoa; `admin_memberships` decide se a conta possui papel `OWNER` ou `ADMIN` ativo.
+2. **Aplicação / Data Plane:** `prk_test_*` e `prk_live_*` identificam Applications autorizadas e aplicam scopes/quotas.
+
+Consequências obrigatórias:
+
+- criar conta ou fazer login não libera `/admin` automaticamente;
+- conta autenticada sem membership recebe acesso negado;
+- JWT de usuário não pode chamar `POST /v1/professional-registrations/verify`;
+- `ADMIN_TOKEN` não é login e fica restrito ao bootstrap único/break-glass;
+- primeiro OWNER exige simultaneamente sessão válida + `ADMIN_TOKEN`;
+- o banco serializa o bootstrap e impede dois OWNERs iniciais concorrentes.
 
 ### Checkpoint mínimo publicado
 
 Staging: `https://crapi-staging.soberania-24b.workers.dev`
 
-O código e a infraestrutura já permitem o seguinte fluxo:
+Fluxo humano planejado para o aceite:
 
-1. autenticar no Control Plane de staging;
-2. criar Application;
-3. gerar API Key `TEST` e visualizar o segredo somente uma vez;
-4. autenticar `POST /v1/professional-registrations/verify` com scope `registry:verify`;
-5. aplicar quota diária;
-6. consultar `professional_registry` como fonte operacional;
-7. registrar `api_requests` e `professional_verifications`;
-8. rotacionar ou revogar a chave;
-9. registrar ações administrativas em `admin_audit_log`.
+1. criar conta em `/criar-conta`;
+2. confirmar o e-mail quando exigido pelo Supabase Auth;
+3. entrar em `/login`;
+4. abrir `/admin`;
+5. se ainda não existir OWNER, informar o `ADMIN_TOKEN` somente na tela de bootstrap;
+6. receber membership `OWNER` ativa;
+7. criar Application;
+8. gerar API Key `TEST` e visualizar o segredo somente uma vez;
+9. autenticar `POST /v1/professional-registrations/verify` com scope `registry:verify`;
+10. rotacionar/revogar a chave e confirmar auditoria.
 
 O miss no Registry Store é conservador: retorna `INCONCLUSIVE`/`UNKNOWN`, nunca `INACTIVE` por inferência.
 
@@ -88,7 +109,7 @@ A execução hospedada da branch `foundation/m0-supabase` passa por:
 - check de toolchain;
 - ESLint;
 - TypeScript strict;
-- Vitest;
+- Vitest, incluindo testes de sessão Supabase Auth e rejeição de JWT humano no Data Plane;
 - build;
 - secret scan;
 - dependency audit;
@@ -96,20 +117,24 @@ A execução hospedada da branch `foundation/m0-supabase` passa por:
 - espera de propagação do Worker;
 - `GET /health` → 200;
 - `GET /ready` → 200;
-- `GET /admin` → 200;
-- `GET /admin/api/applications` sem token → 401.
+- `GET /login` → 200;
+- `GET /criar-conta` → 200;
+- `GET /recuperar-senha` → 200;
+- `GET /admin` sem sessão → 303;
+- `GET /admin/api/applications` sem sessão → 401.
 
 O workflow permanece com `contents: read`. Secrets existem somente no GitHub Actions/Cloudflare runtime e não são persistidos no repositório.
 
 ### Banco e segurança do checkpoint
 
 - migration `m1_control_plane_and_registry_rpcs` aplicada no projeto `cr-api`;
+- migration `20260830011309_admin_memberships_and_owner_bootstrap` aplicada e alinhada ao histórico remoto;
+- `admin_memberships` possui RLS e nenhum grant para `anon`/`authenticated`;
 - funções administrativas e de lookup usam `security invoker`;
-- execução revogada de `public`, `anon` e `authenticated`;
-- execução concedida somente ao runtime privilegiado;
-- RPCs `admin_create_application` e `lookup_registry_snapshot` confirmadas no banco;
+- execução revogada de `public`, `anon` e `authenticated` e concedida somente ao runtime privilegiado;
+- bootstrap do OWNER usa advisory transaction lock e audit event;
 - advisors de segurança permanecem apenas com INFO `RLS Enabled No Policy`, intencional no modelo deny-by-default;
-- advisors de performance permanecem apenas com INFO de índices ainda não usados na base nova.
+- publishable key é configuração pública para Supabase Auth; secret key continua exclusivamente server-side.
 
 ## Regras de backlog
 
