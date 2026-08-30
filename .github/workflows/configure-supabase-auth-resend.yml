@@ -1,0 +1,101 @@
+name: Configure Supabase Auth + Resend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crapi-supabase-auth-resend
+  cancel-in-progress: false
+
+jobs:
+  configure:
+    name: Apply Auth email configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      SOBERANIA_AUTH_FROM: crapi@auth.soberania.tech
+      SUPABASE_PROJECT_REF: nxwqlxrdgpepscwjprym
+
+    steps:
+      - name: Validate required secrets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:SUPABASE_ACCESS_TOKEN)) {
+            throw 'GitHub secret SUPABASE_ACCESS_TOKEN is missing.'
+          }
+          if ([string]::IsNullOrWhiteSpace($env:RESEND_API_KEY)) {
+            throw 'GitHub secret RESEND_API_KEY is missing.'
+          }
+          Write-Host 'Required secrets are present.'
+
+      - name: Checkout reviewed Auth configuration
+        uses: actions/checkout@v4
+        with:
+          ref: 4a40e03d0d1bb4de239ab70b3b939503cd7fa93f
+          persist-credentials: false
+
+      - name: Apply Resend SMTP and Auth templates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./tools/supabase/configure-auth-resend.ps1 -ProjectRef $env:SUPABASE_PROJECT_REF
+
+      - name: Verify safe Supabase Auth settings
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $headers = @{
+            Authorization = "Bearer $env:SUPABASE_ACCESS_TOKEN"
+            Accept = 'application/json'
+          }
+          $uri = "https://api.supabase.com/v1/projects/$env:SUPABASE_PROJECT_REF/config/auth"
+          $config = Invoke-RestMethod -Method Get -Uri $uri -Headers $headers
+
+          $checks = @(
+            @{ Name = 'external_email_enabled'; Actual = $config.external_email_enabled; Expected = $true },
+            @{ Name = 'mailer_autoconfirm'; Actual = $config.mailer_autoconfirm; Expected = $false },
+            @{ Name = 'smtp_admin_email'; Actual = $config.smtp_admin_email; Expected = 'crapi@auth.soberania.tech' },
+            @{ Name = 'smtp_host'; Actual = $config.smtp_host; Expected = 'smtp.resend.com' },
+            @{ Name = 'smtp_port'; Actual = [int]$config.smtp_port; Expected = 465 },
+            @{ Name = 'smtp_user'; Actual = $config.smtp_user; Expected = 'resend' },
+            @{ Name = 'smtp_sender_name'; Actual = $config.smtp_sender_name; Expected = 'CrAPi | Soberania Tech' },
+            @{ Name = 'confirmation_subject'; Actual = $config.mailer_subjects_confirmation; Expected = 'Confirme seu e-mail | CrAPi' },
+            @{ Name = 'recovery_subject'; Actual = $config.mailer_subjects_recovery; Expected = 'Redefina sua senha | CrAPi' }
+          )
+
+          foreach ($check in $checks) {
+            if ($check.Actual -ne $check.Expected) {
+              throw "Verification failed for $($check.Name)."
+            }
+            Write-Host "OK: $($check.Name)"
+          }
+
+          Write-Host 'Supabase Auth + Resend configuration verified without exposing secrets.'
+
+      - name: Publish safe summary
+        if: ${{ success() }}
+        shell: pwsh
+        run: |
+          @'
+          ## CrAPi Auth e-mail configuration
+
+          ✅ Supabase Auth configured to use Resend SMTP.
+
+          - Project: `cr-api`
+          - Sender: `CrAPi | Soberania Tech <crapi@auth.soberania.tech>`
+          - SMTP host: `smtp.resend.com:465`
+          - E-mail confirmation: enabled
+          - Auto-confirm: disabled
+          - Auth templates: applied
+          - Secrets: not printed
+
+          Next: run a real signup from staging and confirm delivery in Resend.
+          '@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
