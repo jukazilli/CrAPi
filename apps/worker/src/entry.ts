@@ -78,6 +78,17 @@ function jsonWithRequestId(body: unknown, status: number, requestId: string): Re
   });
 }
 
+function withRetryAfter(response: Response, retryAfter: string | null): Response {
+  if (!retryAfter) return response;
+  const headers = new Headers(response.headers);
+  headers.set('retry-after', retryAfter);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 async function recordAuthDiagnostic(
   env: Env,
   requestId: string,
@@ -192,7 +203,11 @@ function signupDiagnosticBody(
   return {
     error: status >= 500 ? 'SERVICE_UNAVAILABLE' : 'SIGNUP_FAILED',
     message:
-      status >= 500 ? 'Falha no serviço de autenticação.' : 'Não foi possível criar a conta.',
+      status === 429
+        ? 'Muitas tentativas de cadastro. Aguarde e tente novamente.'
+        : status >= 500
+          ? 'Falha no serviço de autenticação.'
+          : 'Não foi possível criar a conta.',
     request_id: requestId,
     ...(status >= 500
       ? {
@@ -291,10 +306,14 @@ async function handleDiagnosticSignup(request: Request, env: Env, url: URL): Pro
         }),
       );
 
-      return jsonWithRequestId(
-        signupDiagnosticBody(requestId, upstream.status, code, message),
-        upstream.status >= 500 ? 503 : 400,
-        requestId,
+      const responseStatus = upstream.status === 429 ? 429 : upstream.status >= 500 ? 503 : 400;
+      return withRetryAfter(
+        jsonWithRequestId(
+          signupDiagnosticBody(requestId, upstream.status, code, message),
+          responseStatus,
+          requestId,
+        ),
+        upstream.status === 429 ? upstream.headers.get('retry-after') : null,
       );
     }
 
@@ -332,6 +351,189 @@ async function handleDiagnosticSignup(request: Request, env: Env, url: URL): Pro
     console.error(
       JSON.stringify({
         event: 'AUTH_SIGNUP_RUNTIME_FAILURE',
+        request_id: requestId,
+        runtime_error: message,
+      }),
+    );
+    return jsonWithRequestId(
+      {
+        error: 'SERVICE_UNAVAILABLE',
+        request_id: requestId,
+        diagnostics: { runtime_error: message },
+      },
+      503,
+      requestId,
+    );
+  }
+}
+
+async function handleDiagnosticLogin(request: Request, env: Env, url: URL): Promise<Response> {
+  const requestId = requestIdFor(request);
+  if (!env.SUPABASE_URL || !env.SUPABASE_PUBLISHABLE_KEY) {
+    await recordAuthDiagnostic(env, requestId, 'AUTH_LOGIN_RUNTIME_FAILURE', 'HIGH', {
+      route: url.pathname,
+      failure: 'AUTH_NOT_CONFIGURED',
+    });
+    return jsonWithRequestId(
+      { error: 'SERVICE_NOT_READY', request_id: requestId },
+      503,
+      requestId,
+    );
+  }
+
+  try {
+    const body = await requestPayload(request);
+    const email = validateEmail(body.email);
+    const password = validatePassword(body.password);
+    const upstreamUrl = `${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/token?grant_type=password`;
+
+    const upstream = await fetch(upstreamUrl, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        apikey: env.SUPABASE_PUBLISHABLE_KEY,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const rawBody = await upstream.text();
+    let upstreamBody: JsonRecord = {};
+    if (rawBody) {
+      try {
+        const parsed = JSON.parse(rawBody) as unknown;
+        if (isRecord(parsed)) upstreamBody = parsed;
+      } catch {
+        upstreamBody = {};
+      }
+    }
+
+    if (!upstream.ok) {
+      const code =
+        safeString(upstreamBody.code) ??
+        safeString(upstreamBody.error_code) ??
+        `HTTP_${upstream.status}`;
+      const message =
+        safeString(upstreamBody.msg) ??
+        safeString(upstreamBody.message) ??
+        safeString(upstreamBody.error_description) ??
+        safeString(rawBody);
+      const upstreamRequestId =
+        upstream.headers.get('x-request-id') ?? upstream.headers.get('sb-request-id');
+
+      await recordAuthDiagnostic(
+        env,
+        requestId,
+        'AUTH_LOGIN_UPSTREAM_FAILURE',
+        upstream.status >= 500 ? 'HIGH' : 'WARNING',
+        {
+          route: url.pathname,
+          upstream_status: upstream.status,
+          upstream_code: code,
+          upstream_message: message,
+          upstream_request_id: safeString(upstreamRequestId),
+        },
+      );
+
+      console.error(
+        JSON.stringify({
+          event: 'AUTH_LOGIN_UPSTREAM_FAILURE',
+          request_id: requestId,
+          upstream_status: upstream.status,
+          upstream_code: code,
+          upstream_message: message,
+          upstream_request_id: safeString(upstreamRequestId),
+        }),
+      );
+
+      if (upstream.status === 429) {
+        return withRetryAfter(
+          jsonWithRequestId(
+            {
+              error: 'TOO_MANY_ATTEMPTS',
+              message: 'Muitas tentativas de login. Aguarde e tente novamente.',
+              request_id: requestId,
+            },
+            429,
+            requestId,
+          ),
+          upstream.headers.get('retry-after'),
+        );
+      }
+
+      if (upstream.status < 500) {
+        return jsonWithRequestId(
+          {
+            error: 'INVALID_CREDENTIALS',
+            message: 'E-mail ou senha inválidos, ou a conta ainda não foi confirmada.',
+            request_id: requestId,
+          },
+          401,
+          requestId,
+        );
+      }
+
+      return jsonWithRequestId(
+        {
+          error: 'SERVICE_UNAVAILABLE',
+          request_id: requestId,
+          diagnostics: {
+            upstream_status: upstream.status,
+            upstream_code: code,
+            upstream_message: message,
+          },
+        },
+        503,
+        requestId,
+      );
+    }
+
+    const tokens = readAuthTokens(upstreamBody);
+    if (!tokens) {
+      await recordAuthDiagnostic(env, requestId, 'AUTH_LOGIN_SESSION_MISSING', 'HIGH', {
+        route: url.pathname,
+        upstream_status: upstream.status,
+      });
+      return jsonWithRequestId(
+        { error: 'SERVICE_UNAVAILABLE', request_id: requestId },
+        503,
+        requestId,
+      );
+    }
+
+    await recordAuthDiagnostic(env, requestId, 'AUTH_LOGIN_UPSTREAM_SUCCESS', 'INFO', {
+      route: url.pathname,
+      authenticated: true,
+    });
+
+    return appendSetCookies(
+      jsonWithRequestId({ authenticated: true, request_id: requestId }, 200, requestId),
+      sessionCookies(tokens),
+    );
+  } catch (error) {
+    const code = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
+    if (
+      ['INVALID_EMAIL', 'INVALID_PASSWORD', 'INVALID_BODY', 'JSON_OR_FORM_REQUIRED'].includes(code)
+    ) {
+      return jsonWithRequestId(
+        {
+          error: 'INVALID_CREDENTIALS',
+          message: 'E-mail ou senha inválidos.',
+          request_id: requestId,
+        },
+        401,
+        requestId,
+      );
+    }
+
+    const message = safeString(error instanceof Error ? error.message : 'UNKNOWN_ERROR');
+    await recordAuthDiagnostic(env, requestId, 'AUTH_LOGIN_RUNTIME_FAILURE', 'HIGH', {
+      route: url.pathname,
+      runtime_error: message,
+    });
+    console.error(
+      JSON.stringify({
+        event: 'AUTH_LOGIN_RUNTIME_FAILURE',
         request_id: requestId,
         runtime_error: message,
       }),
@@ -414,31 +616,39 @@ function nativeSuccessDestination(pathname: string, responseBody: unknown): stri
   return '/login';
 }
 
+async function redirectNativeAuthResponse(
+  response: Response,
+  url: URL,
+  responseBody: unknown,
+): Promise<Response> {
+  if (response.ok) {
+    const redirected = redirect(nativeSuccessDestination(url.pathname, responseBody));
+    const headers = new Headers(redirected.headers);
+    headers.set('x-crapi-request-id', response.headers.get('x-crapi-request-id') ?? 'unknown');
+    for (const cookie of response.headers.getSetCookie?.() ?? []) {
+      headers.append('set-cookie', cookie);
+    }
+    return new Response(null, { status: 303, headers });
+  }
+
+  const page = authPageByPath[url.pathname] ?? '/login';
+  const requestId = response.headers.get('x-crapi-request-id') ?? 'unknown';
+  return redirect(
+    `${page}?auth_error=${response.status}&request_id=${encodeURIComponent(requestId)}`,
+  );
+}
+
 async function handleNativeAuthPost(request: Request, env: Env, url: URL): Promise<Response> {
-  if (url.pathname === '/auth/signup') {
-    const response = await handleDiagnosticSignup(request, env, url);
+  if (url.pathname === '/auth/signup' || url.pathname === '/auth/login') {
+    const response =
+      url.pathname === '/auth/signup'
+        ? await handleDiagnosticSignup(request, env, url)
+        : await handleDiagnosticLogin(request, env, url);
     const body = await response
       .clone()
       .json()
       .catch(() => null);
-    if (response.ok) {
-      const redirected = redirect(nativeSuccessDestination(url.pathname, body));
-      const headers = new Headers(redirected.headers);
-      headers.set(
-        'x-crapi-request-id',
-        response.headers.get('x-crapi-request-id') ?? 'unknown',
-      );
-      for (const cookie of response.headers.getSetCookie?.() ?? []) {
-        headers.append('set-cookie', cookie);
-      }
-      return new Response(null, { status: 303, headers });
-    }
-
-    const page = authPageByPath[url.pathname] ?? '/login';
-    const requestId = response.headers.get('x-crapi-request-id') ?? 'unknown';
-    return redirect(
-      `${page}?auth_error=${response.status}&request_id=${encodeURIComponent(requestId)}`,
-    );
+    return redirectNativeAuthResponse(response, url, body);
   }
 
   const form = await request.formData();
@@ -460,17 +670,18 @@ async function handleNativeAuthPost(request: Request, env: Env, url: URL): Promi
     .json()
     .catch(() => null);
 
-  if (response.ok) {
-    const redirected = redirect(nativeSuccessDestination(url.pathname, body));
-    const redirectHeaders = new Headers(redirected.headers);
-    for (const cookie of response.headers.getSetCookie?.() ?? []) {
-      redirectHeaders.append('set-cookie', cookie);
-    }
-    return new Response(null, { status: 303, headers: redirectHeaders });
-  }
+  return redirectNativeAuthResponse(response, url, body);
+}
 
-  const page = authPageByPath[url.pathname] ?? '/login';
-  return redirect(`${page}?auth_error=${response.status}`);
+function rejectCrossOriginAuth(request: Request, url: URL): Response | null {
+  const origin = request.headers.get('origin');
+  if (origin && origin !== url.origin) {
+    return jsonWithRequestId({ error: 'FORBIDDEN' }, 403, requestIdFor(request));
+  }
+  if (request.headers.get('sec-fetch-site') === 'cross-site') {
+    return jsonWithRequestId({ error: 'FORBIDDEN' }, 403, requestIdFor(request));
+  }
+  return null;
 }
 
 const entry = {
@@ -491,20 +702,20 @@ const entry = {
       return enhanceAuthPage(request, env, url);
     }
 
-    if (request.method === 'POST' && url.pathname === '/auth/signup') {
-      const origin = request.headers.get('origin');
-      if (origin && origin !== url.origin) {
-        return jsonWithRequestId({ error: 'FORBIDDEN' }, 403, requestIdFor(request));
-      }
-      if (request.headers.get('sec-fetch-site') === 'cross-site') {
-        return jsonWithRequestId({ error: 'FORBIDDEN' }, 403, requestIdFor(request));
-      }
+    if (
+      request.method === 'POST' &&
+      (url.pathname === '/auth/signup' || url.pathname === '/auth/login')
+    ) {
+      const originError = rejectCrossOriginAuth(request, url);
+      if (originError) return originError;
 
       const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
       if (contentType.includes('application/x-www-form-urlencoded')) {
         return handleNativeAuthPost(request, env, url);
       }
-      return handleDiagnosticSignup(request, env, url);
+      return url.pathname === '/auth/signup'
+        ? handleDiagnosticSignup(request, env, url)
+        : handleDiagnosticLogin(request, env, url);
     }
 
     const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
