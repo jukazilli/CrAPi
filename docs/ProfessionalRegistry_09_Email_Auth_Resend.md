@@ -15,15 +15,11 @@ O envio de e-mails do Supabase Auth deve usar Resend via SMTP customizado. O Wor
 
 ## Domínio de envio
 
-Domínio organizacional: `soberania.tech`.
+Domínio verificado no Resend: `soberania.tech`.
 
-Subdomínio transacional adotado para autenticação: `auth.soberania.tech`.
+Remetente padrão do CrAPi: `no-reply@soberania.tech`.
 
-Remetente padrão do CrAPi: `crapi@auth.soberania.tech`.
-
-O subdomínio `auth.soberania.tech` deve ser usado somente para mensagens transacionais/autenticação. Isso separa a reputação desses e-mails de mensagens institucionais ou de marketing da Soberania Tech.
-
-O endereço somente deve entrar em produção depois de `auth.soberania.tech` aparecer como verificado no Resend.
+A CrAPi usa o domínio raiz já verificado pela Soberania Tech para e-mails de autenticação. O endereço `no-reply@soberania.tech` é o remetente técnico padrão e não depende da existência de uma caixa postal para envio via Resend.
 
 ## SMTP
 
@@ -34,7 +30,7 @@ Configuração preparada para:
 - usuário: `resend`;
 - senha: API key do Resend;
 - sender name: `CrAPi | Soberania Tech`;
-- sender e-mail padrão: `crapi@auth.soberania.tech`.
+- sender e-mail padrão: `no-reply@soberania.tech`.
 
 O script aceita sobrescrever o remetente por `SOBERANIA_AUTH_FROM` ou pelo parâmetro `-SenderEmail`, sem alterar o Git.
 
@@ -60,41 +56,27 @@ Fluxos principais:
 
 Script: `tools/supabase/configure-auth-resend.ps1`.
 
-O script aplica SMTP e templates no projeto Supabase hospedado pela Management API. Ele lê os segredos apenas das variáveis de ambiente locais e não grava valores no Git.
+O script aplica SMTP e templates no projeto Supabase hospedado pela Management API. No fluxo em nuvem, ele é executado pelo GitHub Actions e lê os segredos somente dos GitHub Actions Secrets, sem gravá-los no repositório.
 
-Variáveis obrigatórias:
+Secrets obrigatórios no GitHub:
 
-```powershell
-$env:SUPABASE_ACCESS_TOKEN="<personal-access-token-do-supabase>"
-$env:RESEND_API_KEY="<api-key-do-resend>"
-```
+- `SUPABASE_ACCESS_TOKEN`;
+- `RESEND_API_KEY`.
 
-Remetente padrão já configurado no script:
+Remetente padrão configurado:
 
 ```text
-CrAPi | Soberania Tech <crapi@auth.soberania.tech>
+CrAPi | Soberania Tech <no-reply@soberania.tech>
 ```
 
-Se for necessário sobrescrever localmente:
-
-```powershell
-$env:SOBERANIA_AUTH_FROM="outro-remetente@auth.soberania.tech"
-```
-
-Executar na raiz do projeto:
-
-```powershell
-./tools/supabase/configure-auth-resend.ps1
-```
-
-Projeto padrão do script: `nxwqlxrdgpepscwjprym` (`cr-api`). Para outro projeto, usar `-ProjectRef`.
+Projeto padrão do script: `nxwqlxrdgpepscwjprym` (`cr-api`).
 
 ## Configuração manual equivalente no Supabase
 
 Authentication → SMTP Settings / Custom SMTP:
 
 - Sender name: `CrAPi | Soberania Tech`;
-- Sender email: `crapi@auth.soberania.tech`;
+- Sender email: `no-reply@soberania.tech`;
 - Host: `smtp.resend.com`;
 - Port: `465`;
 - Username: `resend`;
@@ -104,31 +86,32 @@ Manter confirmação de e-mail habilitada.
 
 ## DNS e Resend
 
-Cadastrar no Resend exatamente o domínio `auth.soberania.tech`.
+O domínio `soberania.tech` está verificado no Resend e é a identidade de envio usada pela CrAPi.
 
-Os registros DNS devem ser copiados exatamente do painel do Resend para o provedor DNS de `soberania.tech`. O conjunto normalmente inclui autenticação DKIM e registros usados por SPF/Return-Path. Não inventar valores de DNS: usar somente os registros fornecidos pelo Resend para `auth.soberania.tech`.
+Os registros DNS de autenticação devem permanecer conforme os valores fornecidos pelo Resend. Não inventar ou alterar DKIM/SPF/Return-Path sem validar a configuração no painel do Resend.
 
 Recomendações de entregabilidade:
 
-- manter `auth.soberania.tech` exclusivo para e-mail transacional;
-- configurar DMARC no domínio organizacional `soberania.tech`;
+- usar `no-reply@soberania.tech` somente para mensagens transacionais do sistema;
+- configurar/manter DMARC no domínio `soberania.tech`;
 - manter click/open tracking desligado para links de autenticação, para evitar reescrita dos links;
-- não usar o domínio transacional para campanhas de marketing;
+- não usar o endereço de autenticação para campanhas de marketing;
 - monitorar bounces e complaints no painel do Resend.
 
 ## Validação obrigatória
 
 Depois do SMTP ser ativado:
 
-1. confirmar `auth.soberania.tech` como `Verified` no Resend;
+1. confirmar `soberania.tech` como `Verified` no Resend;
 2. confirmar `/debug/auth/settings` com signup habilitado e autoconfirm desabilitado;
-3. executar cadastro real em staging;
-4. confirmar que o Resend registra `delivered` ou equivalente;
-5. clicar no e-mail e verificar `/auth/confirm`;
-6. confirmar criação de sessão;
-7. testar recuperação de senha;
-8. confirmar que nenhum segredo aparece em logs, commits ou respostas públicas;
-9. conferir que um usuário autenticado sem membership continua sem acesso administrativo.
+3. confirmar o teste SMTP real usando `no-reply@soberania.tech`;
+4. executar cadastro real em staging;
+5. confirmar que o Resend registra `delivered` ou equivalente;
+6. clicar no e-mail e verificar `/auth/confirm`;
+7. confirmar criação de sessão;
+8. testar recuperação de senha;
+9. confirmar que nenhum segredo aparece em logs, commits ou respostas públicas;
+10. conferir que um usuário autenticado sem membership continua sem acesso administrativo.
 
 ## Segurança
 
