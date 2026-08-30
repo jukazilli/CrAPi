@@ -12,7 +12,7 @@ API privada e independente para normalizar e verificar registros de conselhos pr
 
 ## Estado
 
-Primeiro checkpoint operacional implementado; publicação de staging pendente.
+Primeiro checkpoint operacional implementado; publicação de staging em validação.
 
 - documentação canônica: pronta;
 - contrato V1: criado;
@@ -28,7 +28,8 @@ Primeiro checkpoint operacional implementado; publicação de staging pendente.
 - quota diária e auditoria de requests: implementadas;
 - miss no Registry Store: retorna `INCONCLUSIVE`, nunca falso `INACTIVE`;
 - `apps/worker/wrangler.jsonc`: pronto para staging Cloudflare;
-- deploy staging do Worker: pendente de credenciais/configuração do provedor.
+- deploy de staging: automatizado via GitHub Actions após quality/security gates;
+- credenciais de deploy e runtime: gerenciadas exclusivamente por GitHub Actions Secrets e Cloudflare.
 
 ## Checkpoint navegável
 
@@ -56,6 +57,11 @@ Segredos que devem existir somente no secret store do runtime:
 - `SUPABASE_SECRET_KEY` — chave `sb_secret_*` server-side do Supabase;
 - `API_KEY_PEPPER` — segredo aleatório com pelo menos 32 bytes;
 - `ADMIN_TOKEN` — token separado do Control Plane com pelo menos 32 bytes.
+
+Segredos usados somente pelo pipeline de deploy:
+
+- `CLOUDFLARE_API_TOKEN`;
+- `CLOUDFLARE_ACCOUNT_ID`.
 
 Nunca commitar ou enviar esses segredos em chat, URL, código cliente ou documentação.
 
