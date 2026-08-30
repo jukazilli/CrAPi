@@ -1,6 +1,6 @@
 {
   "name": "crapi-staging",
-  "main": "./src/entry.ts",
+  "main": "./src/auth-gateway.ts",
   "compatibility_date": "2026-08-29",
   "workers_dev": true,
   "preview_urls": true,
