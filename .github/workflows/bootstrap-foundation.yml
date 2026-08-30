@@ -138,15 +138,21 @@ jobs:
           assert_http '/admin/api/applications' '401'
           assert_http '/auth/signup' '303'
           assert_http '/debug/auth/settings' '200'
-          assert_http '/debug/db/authorization' '200'
 
           echo 'Auth settings diagnostic:'
           curl --silent --show-error --fail "$DEPLOYMENT_URL/debug/auth/settings"
           echo
 
           echo 'Database authorization diagnostic:'
-          curl --silent --show-error --fail "$DEPLOYMENT_URL/debug/db/authorization"
-          echo
+          node --input-type=module <<'NODE'
+          const response = await fetch(`${process.env.DEPLOYMENT_URL}/debug/db/authorization`, {
+            headers: { accept: 'application/json' },
+          });
+          const text = await response.text();
+          console.log(`status=${response.status}`);
+          console.log(text);
+          if (response.status !== 200) process.exit(1);
+          NODE
 
           curl --silent --show-error --fail "$DEPLOYMENT_URL/criar-conta" > "$RUNNER_TEMP/signup-page.html"
           if ! grep -F 'method="post" action="/auth/signup"' "$RUNNER_TEMP/signup-page.html" >/dev/null; then
