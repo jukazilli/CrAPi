@@ -6,6 +6,7 @@ API privada e independente para normalizar e verificar registros de conselhos pr
 
 - Cloudflare Workers: Data Plane, autenticação de sessão e rotas administrativas.
 - Supabase Auth: cadastro, login, confirmação, recuperação e sessão humana.
+- Resend via SMTP customizado: transporte padrão dos e-mails do Supabase Auth.
 - Supabase PostgreSQL: Registry Store, memberships administrativas, histórico, sync e auditoria.
 - Database-first + Scheduled Sync + On-demand Refresh.
 - API Keys próprias por aplicação/ambiente.
@@ -22,6 +23,7 @@ Staging publicado com autenticação de usuário e autorização administrativa 
 - 15 tabelas operacionais/administrativas: criadas com RLS ativo;
 - Supabase Auth: integrado ao Worker;
 - login, criação de conta, recuperação e redefinição de senha: implementados;
+- Resend: arquitetura, templates e automação de configuração SMTP preparados; ativação externa depende de domínio verificado + credenciais locais;
 - sessão: cookies `HttpOnly`, `Secure` e `SameSite=Strict`;
 - autorização humana: `admin_memberships` com papéis `OWNER`/`ADMIN`;
 - primeiro OWNER: bootstrap único exigindo sessão válida + `ADMIN_TOKEN`;
@@ -62,12 +64,22 @@ O pipeline de staging publica com Wrangler fixado e aguarda a propagação antes
 
 ## Configuração externa do Supabase Auth
 
-Para confirmação de e-mail e recuperação funcionarem no domínio de staging, o projeto Supabase deve autorizar o callback do Worker:
+Para confirmação de e-mail e recuperação funcionarem no domínio de staging, o projeto Supabase deve autorizar o Worker:
 
 - Site URL: `https://crapi-staging.soberania-24b.workers.dev`;
 - Redirect URL: `https://crapi-staging.soberania-24b.workers.dev/auth/callback`.
 
-Essa configuração fica no Dashboard do Supabase e não é controlada por migration SQL. Nenhum segredo precisa ser inserido nessa etapa.
+Os templates versionados usam `/auth/confirm` com `TokenHash` para concluir a verificação server-side e criar a sessão segura.
+
+### Resend
+
+O transporte padrão definido para e-mails de Auth é Resend por SMTP customizado do Supabase.
+
+- templates: `supabase/templates/`;
+- configuração automatizada: `tools/supabase/configure-auth-resend.ps1`;
+- documentação: `docs/ProfessionalRegistry_09_Email_Auth_Resend.md`.
+
+A `RESEND_API_KEY` não pertence ao runtime do Worker e nunca deve ser commitada. A ativação é feita no Supabase/Resend com credenciais mantidas somente no ambiente local de configuração.
 
 ## Primeiro OWNER
 
