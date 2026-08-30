@@ -5,5 +5,6 @@ pnpm-lock.yaml
 docs/**
 supabase/**
 tools/postman/*.postman_collection.json
+apps/worker/src/entry.ts
 AGENTS.md
 README.md
