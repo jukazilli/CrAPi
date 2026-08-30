@@ -30,7 +30,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Quality gates
-        run: pnpm check:ci
+        run: |
+          pnpm exec prettier apps/worker/src/entry.ts
+          echo '---POSTMAN---'
+          pnpm exec prettier tools/postman/CrAPi-Staging-Auth-Debug.postman_collection.json
+          exit 1
 
       - name: Security gates
         run: pnpm security
