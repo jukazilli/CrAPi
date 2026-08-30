@@ -1,5 +1,6 @@
-triggered_at=2026-08-30T02:36:00-03:00
+triggered_at=2026-08-30T12:52:00-03:00
 purpose=configure-supabase-auth-resend
-attempt=5
+attempt=6
 sender=no-reply@soberania.tech
 rate_limit_email_sent=30
+confirmation_type=signup
