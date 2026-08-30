@@ -6,6 +6,7 @@ const authEnv = {
   APP_ENV: 'test',
   SUPABASE_URL: 'https://project.supabase.co',
   SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_abcdefghijklmnopqrstuvwxyz',
+  API_KEY_PEPPER: '0123456789abcdef0123456789abcdef',
 };
 
 describe('worker foundation', () => {
@@ -34,7 +35,6 @@ describe('worker foundation', () => {
     const response = await worker.fetch(new Request('https://crapi.test/ready'), {
       ...authEnv,
       SUPABASE_SECRET_KEY: 'sb_secret_abcdefghijklmnopqrstuvwxyz',
-      API_KEY_PEPPER: '0123456789abcdef0123456789abcdef',
     });
 
     expect(response.status).toBe(200);
