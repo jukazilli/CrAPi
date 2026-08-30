@@ -22,8 +22,14 @@ export class AdminAuthorizationService {
   }
 
   async ownerExists(): Promise<boolean> {
-    const rows = await this.db.rpc<boolean>('admin_owner_exists', {});
-    return rows[0] ?? false;
+    const query = new URLSearchParams({
+      select: 'user_id',
+      role: 'eq.OWNER',
+      status: 'eq.ACTIVE',
+      limit: '1',
+    });
+    const rows = await this.db.select<{ user_id: string }>('admin_memberships', query);
+    return rows.length > 0;
   }
 
   async bootstrapOwner(userId: string): Promise<AdminMembership> {
