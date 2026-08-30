@@ -172,7 +172,11 @@ export class SupabaseAuthService {
     return body as T;
   }
 
-  async signUp(email: string, password: string, redirectTo: string): Promise<{ tokens: AuthTokens | null }> {
+  async signUp(
+    email: string,
+    password: string,
+    redirectTo: string,
+  ): Promise<{ tokens: AuthTokens | null }> {
     const query = new URLSearchParams({ redirect_to: redirectTo });
     const body = await this.request<AuthResponseBody>(`/auth/v1/signup?${query.toString()}`, {
       method: 'POST',
@@ -200,8 +204,16 @@ export class SupabaseAuthService {
   }
 
   async verifyOtp(tokenHash: string, type: string): Promise<AuthTokens> {
-    const allowedTypes = new Set(['email', 'signup', 'recovery', 'magiclink', 'invite', 'email_change']);
-    if (!tokenHash || !allowedTypes.has(type)) throw new SupabaseAuthError(400, 'INVALID_AUTH_CALLBACK');
+    const allowedTypes = new Set([
+      'email',
+      'signup',
+      'recovery',
+      'magiclink',
+      'invite',
+      'email_change',
+    ]);
+    if (!tokenHash || !allowedTypes.has(type))
+      throw new SupabaseAuthError(400, 'INVALID_AUTH_CALLBACK');
     const body = await this.request<AuthResponseBody>('/auth/v1/verify', {
       method: 'POST',
       body: JSON.stringify({ token_hash: tokenHash, type }),
@@ -229,10 +241,14 @@ export class SupabaseAuthService {
   }
 
   async updatePassword(accessToken: string, password: string): Promise<void> {
-    await this.request('/auth/v1/user', {
-      method: 'PUT',
-      body: JSON.stringify({ password }),
-    }, accessToken);
+    await this.request(
+      '/auth/v1/user',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ password }),
+      },
+      accessToken,
+    );
   }
 
   async logout(accessToken: string | null): Promise<void> {

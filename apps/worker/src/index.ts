@@ -5,10 +5,7 @@ import { authenticateAdminRequest } from './admin-auth.js';
 import { ADMIN_PAGE } from './admin-page.js';
 import { AdminService } from './admin-service.js';
 import { authenticateApiRequest } from './api-key-auth.js';
-import {
-  appendSetCookies,
-  AUTH_CALLBACK_PAGE,
-} from './auth-page-bridge.js';
+import { appendSetCookies, AUTH_CALLBACK_PAGE } from './auth-page-bridge.js';
 import {
   clearSessionCookies,
   resolveSession,
@@ -131,7 +128,10 @@ function enforceSameOrigin(request: Request): Response | null {
   return null;
 }
 
-function authClientError(error: unknown, operation: 'login' | 'signup' | 'recover' | 'session' | 'password'): Response {
+function authClientError(
+  error: unknown,
+  operation: 'login' | 'signup' | 'recover' | 'session' | 'password',
+): Response {
   if (error instanceof SupabaseAuthError) {
     if (operation === 'login' && error.status < 500) {
       return json({ error: 'INVALID_CREDENTIALS', message: 'E-mail ou senha inválidos.' }, 401);
@@ -146,7 +146,10 @@ function authClientError(error: unknown, operation: 'login' | 'signup' | 'recove
       return json({ error: 'UNAUTHORIZED' }, 401);
     }
     if (operation === 'password' && error.status < 500) {
-      return json({ error: 'PASSWORD_UPDATE_FAILED', message: 'Não foi possível atualizar a senha.' }, 400);
+      return json(
+        { error: 'PASSWORD_UPDATE_FAILED', message: 'Não foi possível atualizar a senha.' },
+        400,
+      );
     }
   }
   return json({ error: 'SERVICE_UNAVAILABLE' }, 503);
@@ -206,7 +209,16 @@ async function handleAuthApi(request: Request, env: Env, url: URL): Promise<Resp
         sessionCookies(result.tokens),
       );
     } catch (error) {
-      if (error instanceof Error && ['INVALID_EMAIL', 'INVALID_PASSWORD', 'INVALID_BODY', 'JSON_REQUIRED', 'INVALID_JSON'].includes(error.message)) {
+      if (
+        error instanceof Error &&
+        [
+          'INVALID_EMAIL',
+          'INVALID_PASSWORD',
+          'INVALID_BODY',
+          'JSON_REQUIRED',
+          'INVALID_JSON',
+        ].includes(error.message)
+      ) {
         return operationalError(error);
       }
       return authClientError(error, 'signup');
@@ -219,7 +231,16 @@ async function handleAuthApi(request: Request, env: Env, url: URL): Promise<Resp
       const tokens = await auth.signIn(validateEmail(body.email), validatePassword(body.password));
       return appendSetCookies(json({ authenticated: true }), sessionCookies(tokens));
     } catch (error) {
-      if (error instanceof Error && ['INVALID_EMAIL', 'INVALID_PASSWORD', 'INVALID_BODY', 'JSON_REQUIRED', 'INVALID_JSON'].includes(error.message)) {
+      if (
+        error instanceof Error &&
+        [
+          'INVALID_EMAIL',
+          'INVALID_PASSWORD',
+          'INVALID_BODY',
+          'JSON_REQUIRED',
+          'INVALID_JSON',
+        ].includes(error.message)
+      ) {
         return json({ error: 'INVALID_CREDENTIALS', message: 'E-mail ou senha inválidos.' }, 401);
       }
       return authClientError(error, 'login');
@@ -233,7 +254,10 @@ async function handleAuthApi(request: Request, env: Env, url: URL): Promise<Resp
       const callback = `${url.origin}/auth/callback?next=${encodeURIComponent('/redefinir-senha')}`;
       await auth.sendPasswordRecovery(email, callback);
     } catch (error) {
-      if (error instanceof Error && ['INVALID_EMAIL', 'INVALID_BODY', 'JSON_REQUIRED', 'INVALID_JSON'].includes(error.message)) {
+      if (
+        error instanceof Error &&
+        ['INVALID_EMAIL', 'INVALID_BODY', 'JSON_REQUIRED', 'INVALID_JSON'].includes(error.message)
+      ) {
         return operationalError(error);
       }
       if (!(error instanceof SupabaseAuthError) || error.status >= 500) {
@@ -265,7 +289,12 @@ async function handleAuthApi(request: Request, env: Env, url: URL): Promise<Resp
       await auth.updatePassword(session.accessToken, validatePassword(body.password));
       return appendSetCookies(json({ updated: true }), session.setCookies);
     } catch (error) {
-      if (error instanceof Error && ['INVALID_PASSWORD', 'INVALID_BODY', 'JSON_REQUIRED', 'INVALID_JSON'].includes(error.message)) {
+      if (
+        error instanceof Error &&
+        ['INVALID_PASSWORD', 'INVALID_BODY', 'JSON_REQUIRED', 'INVALID_JSON'].includes(
+          error.message,
+        )
+      ) {
         return operationalError(error);
       }
       return authClientError(error, 'password');
@@ -293,7 +322,10 @@ async function handleAuthApi(request: Request, env: Env, url: URL): Promise<Resp
       }
       const authorization = new AdminAuthorizationService(createDb(env));
       if (await authorization.ownerExists()) {
-        return appendSetCookies(json({ error: 'OWNER_ALREADY_BOOTSTRAPPED' }, 409), session.setCookies);
+        return appendSetCookies(
+          json({ error: 'OWNER_ALREADY_BOOTSTRAPPED' }, 409),
+          session.setCookies,
+        );
       }
       const membership = await authorization.bootstrapOwner(session.user.id);
       return appendSetCookies(json({ membership }, 201), session.setCookies);
@@ -353,13 +385,20 @@ async function handleAuthMe(request: Request, env: Env): Promise<Response> {
 async function authorizeAdminRequest(request: Request, env: Env) {
   const auth = createAuth(env);
   const session = await resolveSession(request, auth);
-  if (!session.user) return { ok: false as const, response: appendSetCookies(json({ error: 'UNAUTHORIZED' }, 401), session.setCookies) };
+  if (!session.user)
+    return {
+      ok: false as const,
+      response: appendSetCookies(json({ error: 'UNAUTHORIZED' }, 401), session.setCookies),
+    };
 
   const db = createDb(env);
   const authorization = new AdminAuthorizationService(db);
   const membership = await authorization.isAuthorized(session.user.id);
   if (!membership) {
-    return { ok: false as const, response: appendSetCookies(json({ error: 'FORBIDDEN' }, 403), session.setCookies) };
+    return {
+      ok: false as const,
+      response: appendSetCookies(json({ error: 'FORBIDDEN' }, 403), session.setCookies),
+    };
   }
 
   return {
@@ -521,11 +560,16 @@ const worker: WorkerHandler = {
     }
 
     if (request.method === 'GET' && url.pathname === '/login') return html(renderAuthPage('login'));
-    if (request.method === 'GET' && url.pathname === '/criar-conta') return html(renderAuthPage('signup'));
-    if (request.method === 'GET' && url.pathname === '/recuperar-senha') return html(renderAuthPage('recover'));
-    if (request.method === 'GET' && url.pathname === '/redefinir-senha') return html(renderAuthPage('reset'));
-    if (request.method === 'GET' && url.pathname === '/auth/callback') return html(AUTH_CALLBACK_PAGE);
-    if (request.method === 'GET' && url.pathname === '/auth/confirm') return handleAuthConfirm(request, env, url);
+    if (request.method === 'GET' && url.pathname === '/criar-conta')
+      return html(renderAuthPage('signup'));
+    if (request.method === 'GET' && url.pathname === '/recuperar-senha')
+      return html(renderAuthPage('recover'));
+    if (request.method === 'GET' && url.pathname === '/redefinir-senha')
+      return html(renderAuthPage('reset'));
+    if (request.method === 'GET' && url.pathname === '/auth/callback')
+      return html(AUTH_CALLBACK_PAGE);
+    if (request.method === 'GET' && url.pathname === '/auth/confirm')
+      return handleAuthConfirm(request, env, url);
     if (request.method === 'GET' && url.pathname === '/auth/me') return handleAuthMe(request, env);
     if (url.pathname.startsWith('/auth/')) return handleAuthApi(request, env, url);
 
