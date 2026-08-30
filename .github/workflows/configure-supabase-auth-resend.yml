@@ -52,6 +52,20 @@ jobs:
           $ErrorActionPreference = 'Stop'
           ./tools/supabase/configure-auth-resend.ps1 -ProjectRef $env:SUPABASE_PROJECT_REF
 
+      - name: Apply Auth e-mail rate limit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{
+            Authorization = "Bearer $env:SUPABASE_ACCESS_TOKEN"
+            'Content-Type' = 'application/json'
+            Accept = 'application/json'
+          }
+          $uri = "https://api.supabase.com/v1/projects/$env:SUPABASE_PROJECT_REF/config/auth"
+          $body = @{ rate_limit_email_sent = 30 } | ConvertTo-Json -Compress
+          Invoke-RestMethod -Method Patch -Uri $uri -Headers $headers -Body $body | Out-Null
+          Write-Host 'Auth e-mail rate limit set to 30 messages/hour.'
+
       - name: Verify safe Supabase Auth settings
         shell: pwsh
         run: |
@@ -72,6 +86,7 @@ jobs:
             @{ Name = 'smtp_port'; Actual = [int]$config.smtp_port; Expected = 465 },
             @{ Name = 'smtp_user'; Actual = $config.smtp_user; Expected = 'resend' },
             @{ Name = 'smtp_sender_name'; Actual = $config.smtp_sender_name; Expected = 'CrAPi | Soberania Tech' },
+            @{ Name = 'rate_limit_email_sent'; Actual = [int]$config.rate_limit_email_sent; Expected = 30 },
             @{ Name = 'confirmation_subject'; Actual = $config.mailer_subjects_confirmation; Expected = 'Confirme seu e-mail | CrAPi' },
             @{ Name = 'recovery_subject'; Actual = $config.mailer_subjects_recovery; Expected = 'Redefina sua senha | CrAPi' }
           )
@@ -118,6 +133,7 @@ jobs:
           - Project: `cr-api`
           - Sender: `CrAPi | Soberania Tech <no-reply@soberania.tech>`
           - SMTP host: `smtp.resend.com:465`
+          - Auth email rate limit: `30/hour`
           - E-mail confirmation: enabled
           - Auto-confirm: disabled
           - Auth templates: applied
