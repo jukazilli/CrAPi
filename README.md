@@ -15,7 +15,7 @@ API privada e independente para normalizar e verificar registros de conselhos pr
 
 Staging publicado com autenticação de usuário e autorização administrativa separadas.
 
-- documentação canônica: em atualização contínua;
+- documentação canônica: atualizada para o modelo Supabase Auth + memberships;
 - contrato V1: criado;
 - Supabase `cr-api`: conectado e saudável em `sa-east-1`;
 - migrations fundacionais e M1: aplicadas e alinhadas ao histórico remoto;
