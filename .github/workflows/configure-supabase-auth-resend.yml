@@ -2,6 +2,11 @@ name: Configure Supabase Auth + Resend
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/resend-auth-trigger.txt'
 
 permissions:
   contents: read
