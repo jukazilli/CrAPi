@@ -51,19 +51,21 @@ Objetivo: integração real com primeiro consumidor, staging/production, observa
 | PR-M0-001 | Done | Documentação canônica e `AGENTS.md` versionados. |
 | PR-M0-002 | Done | Node/pnpm fixos, workspaces, lockfile congelado e toolchain reproduzível. |
 | PR-M0-003 | Done | GitHub Actions executa format, toolchain, lint, typecheck, test, build, secret scan e dependency audit com sucesso. |
-| PR-M0-004 | In Progress | Worker, `/admin` e `wrangler.jsonc` estão prontos; publicação Cloudflare e prova hospedada ainda pendentes. |
+| PR-M0-004 | Done | `crapi-staging` publicado em Cloudflare Workers via GitHub Actions; `/health`, `/ready` e `/admin` respondem 200 e a API administrativa sem token responde 401 no smoke test hospedado. |
 | PR-M0-005 | Done | Registry Contract V1 tipado, normalização e testes presentes. |
 | PR-M1-001 | Done | Schema Supabase aplicado, 14 tabelas com RLS, grants restritos e advisors revisados. |
-| PR-M1-002 | In Progress | Lifecycle create/list/rotate/revoke implementado com RPCs server-only e raw key one-time; E2E hospedado pendente. |
-| PR-M1-003 | In Progress | Middleware + lookup Supabase + endpoint protegido real implementados e passando CI; E2E hospedado pendente. |
-| PR-M1-004 | In Progress | Scope `registry:verify` aplicado na rota real; validação hospedada pendente. |
+| PR-M1-002 | In Progress | Lifecycle create/list/rotate/revoke implementado com RPCs server-only e raw key one-time; ciclo manual hospedado ainda precisa ser provado. |
+| PR-M1-003 | In Progress | Middleware + lookup Supabase + endpoint protegido real implementados e passando CI; ciclo create-key -> verify hospedado ainda precisa ser provado. |
+| PR-M1-004 | In Progress | Scope `registry:verify` aplicado na rota real; prova com API Key emitida no staging ainda pendente. |
 | PR-M1-005 | In Progress | Quota diária implementada para o checkpoint; reserva atômica sob concorrência será endurecida antes do beta. |
-| PR-M1-006 | In Progress | Control Plane mínimo navegável implementado em `/admin`, protegido por token separado; staging pendente. |
+| PR-M1-006 | In Progress | Control Plane mínimo publicado e navegável em `/admin`; login e lifecycle manual são o próximo checkpoint de aceite. |
 | PR-M2-001 | In Progress | Slice database-first implementado: Registry Store hit retorna snapshot; miss retorna `INCONCLUSIVE` até on-demand refresh/provider. |
 
-### Checkpoint mínimo implementado
+### Checkpoint mínimo publicado
 
-O código já permite o seguinte fluxo quando o Worker for hospedado:
+Staging: `https://crapi-staging.soberania-24b.workers.dev`
+
+O código e a infraestrutura já permitem o seguinte fluxo:
 
 1. autenticar no Control Plane de staging;
 2. criar Application;
@@ -77,9 +79,9 @@ O código já permite o seguinte fluxo quando o Worker for hospedado:
 
 O miss no Registry Store é conservador: retorna `INCONCLUSIVE`/`UNKNOWN`, nunca `INACTIVE` por inferência.
 
-### Evidência dos gates
+### Evidência dos gates e staging
 
-A execução hospedada da branch `foundation/m0-supabase` passou com:
+A execução hospedada da branch `foundation/m0-supabase` passa por:
 
 - `pnpm install --frozen-lockfile`;
 - Prettier;
@@ -89,9 +91,15 @@ A execução hospedada da branch `foundation/m0-supabase` passou com:
 - Vitest;
 - build;
 - secret scan;
-- dependency audit.
+- dependency audit;
+- deploy com Wrangler fixado;
+- espera de propagação do Worker;
+- `GET /health` → 200;
+- `GET /ready` → 200;
+- `GET /admin` → 200;
+- `GET /admin/api/applications` sem token → 401.
 
-O workflow está em `contents: read` após as normalizações únicas realizadas pelo próprio toolchain da branch.
+O workflow permanece com `contents: read`. Secrets existem somente no GitHub Actions/Cloudflare runtime e não são persistidos no repositório.
 
 ### Banco e segurança do checkpoint
 
@@ -99,6 +107,7 @@ O workflow está em `contents: read` após as normalizações únicas realizadas
 - funções administrativas e de lookup usam `security invoker`;
 - execução revogada de `public`, `anon` e `authenticated`;
 - execução concedida somente ao runtime privilegiado;
+- RPCs `admin_create_application` e `lookup_registry_snapshot` confirmadas no banco;
 - advisors de segurança permanecem apenas com INFO `RLS Enabled No Policy`, intencional no modelo deny-by-default;
 - advisors de performance permanecem apenas com INFO de índices ainda não usados na base nova.
 
