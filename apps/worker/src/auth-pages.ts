@@ -190,7 +190,8 @@ export const AUTH_CALLBACK_PAGE = String.raw`<!doctype html>
   const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
   const accessToken = hash.get('access_token');
   const refreshToken = hash.get('refresh_token');
-  const next = new URL(location.href).searchParams.get('next') || '/admin';
+  const requestedNext = new URL(location.href).searchParams.get('next') || '/admin';
+  const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/admin';
   history.replaceState(null, '', location.pathname + location.search);
   if (!accessToken || !refreshToken) {
     status.textContent = 'Link inválido ou expirado. Solicite um novo acesso.';
@@ -203,7 +204,7 @@ export const AUTH_CALLBACK_PAGE = String.raw`<!doctype html>
       body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken })
     });
     if (!response.ok) throw new Error('Falha ao validar a sessão.');
-    location.replace(next.startsWith('/') ? next : '/admin');
+    location.replace(next);
   } catch (error) {
     status.textContent = error instanceof Error ? error.message : 'Não foi possível confirmar o acesso.';
   }
