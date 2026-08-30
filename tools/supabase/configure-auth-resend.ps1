@@ -1,6 +1,6 @@
 param(
   [string]$ProjectRef = "nxwqlxrdgpepscwjprym",
-  [string]$SenderEmail = $env:SOBERANIA_AUTH_FROM,
+  [string]$SenderEmail = $(if ($env:SOBERANIA_AUTH_FROM) { $env:SOBERANIA_AUTH_FROM } else { "crapi@auth.soberania.tech" }),
   [string]$SenderName = "CrAPi | Soberania Tech"
 )
 
@@ -15,7 +15,7 @@ function Require-EnvironmentValue([string]$Name) {
 }
 
 if ([string]::IsNullOrWhiteSpace($SenderEmail) -or $SenderEmail -notmatch "^[^@\s]+@[^@\s]+\.[^@\s]+$") {
-  throw "Informe SOBERANIA_AUTH_FROM com o e-mail remetente verificado no Resend."
+  throw "Informe um e-mail remetente valido e verificado no Resend."
 }
 
 $supabaseAccessToken = Require-EnvironmentValue "SUPABASE_ACCESS_TOKEN"
