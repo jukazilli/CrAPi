@@ -12,7 +12,7 @@ API privada e independente para normalizar e verificar registros de conselhos pr
 
 ## Estado
 
-Primeiro checkpoint operacional implementado; publicação de staging em validação.
+Primeiro checkpoint operacional publicado e navegável em staging.
 
 - documentação canônica: pronta;
 - contrato V1: criado;
@@ -27,15 +27,26 @@ Primeiro checkpoint operacional implementado; publicação de staging em valida�
 - endpoint protegido `POST /v1/professional-registrations/verify`: implementado;
 - quota diária e auditoria de requests: implementadas;
 - miss no Registry Store: retorna `INCONCLUSIVE`, nunca falso `INACTIVE`;
-- `apps/worker/wrangler.jsonc`: pronto para staging Cloudflare;
 - deploy de staging: automatizado via GitHub Actions após quality/security gates;
-- credenciais de deploy e runtime: gerenciadas exclusivamente por GitHub Actions Secrets e Cloudflare.
+- credenciais de deploy e runtime: gerenciadas exclusivamente por GitHub Actions Secrets e Cloudflare;
+- staging: `https://crapi-staging.soberania-24b.workers.dev`.
+
+## Evidência hospedada
+
+O pipeline de staging publica com Wrangler fixado e aguarda a propagação antes dos smoke tests. Evidência do checkpoint:
+
+- `GET /health` → HTTP 200;
+- `GET /ready` → HTTP 200;
+- `GET /admin` → HTTP 200;
+- `GET /admin/api/applications` sem token → HTTP 401;
+- quality/security gates → sucesso;
+- Supabase operacional com RPCs administrativas e Registry Store disponíveis.
 
 ## Checkpoint navegável
 
-Quando o Worker estiver hospedado, o fluxo mínimo será:
+Fluxo mínimo de validação manual:
 
-1. abrir `/admin`;
+1. abrir `https://crapi-staging.soberania-24b.workers.dev/admin`;
 2. informar o `ADMIN_TOKEN` de staging;
 3. criar uma Application;
 4. gerar uma API Key `TEST`;
@@ -49,7 +60,7 @@ O Control Plane não recebe nem expõe a chave privilegiada do Supabase. Todo ac
 
 Configuração não sensível:
 
-- `APP_ENV=staging` — já versionado no `wrangler.jsonc`;
+- `APP_ENV=staging` — versionado no `wrangler.jsonc`;
 - `SUPABASE_URL` — URL pública do projeto Supabase.
 
 Segredos que devem existir somente no secret store do runtime:
