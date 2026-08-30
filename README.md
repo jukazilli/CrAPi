@@ -84,6 +84,8 @@ O banco inicia sem OWNER. O primeiro proprietário é criado de forma controlada
 
 O `ADMIN_TOKEN` não é o login do Control Plane. Ele permanece apenas como credencial de bootstrap/break-glass e nunca autoriza a Registry API.
 
+O aceite manual desta etapa deve confirmar somente que existe um OWNER ativo e que o painel abre após o login; nenhum token, senha ou API Key deve ser copiado para tickets, commits ou chats.
+
 ## Checkpoint navegável
 
 Após criar o OWNER, o fluxo mínimo é:
