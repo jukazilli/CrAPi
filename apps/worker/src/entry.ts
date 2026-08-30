@@ -139,19 +139,21 @@ async function handleNativeAuthPost(request: Request, env: Env, url: URL): Promi
 const entry = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const authPage = authPageByPath[url.pathname];
+    const formRoute = formRouteByPage[url.pathname];
 
-    if (request.method === 'GET' && authPageByPath[url.pathname]) {
-      return redirect(authPageByPath[url.pathname]);
+    if (request.method === 'GET' && authPage) {
+      return redirect(authPage);
     }
 
-    if (request.method === 'GET' && formRouteByPage[url.pathname]) {
+    if (request.method === 'GET' && formRoute) {
       return enhanceAuthPage(request, env, url);
     }
 
     const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
     if (
       request.method === 'POST' &&
-      authPageByPath[url.pathname] &&
+      authPage &&
       contentType.includes('application/x-www-form-urlencoded')
     ) {
       return handleNativeAuthPost(request, env, url);
