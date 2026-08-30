@@ -60,6 +60,15 @@ O pipeline de staging publica com Wrangler fixado e aguarda a propagação antes
 - quality/security gates → sucesso;
 - testes unitários confirmam que JWT humano não é aceito como API Key da Registry API.
 
+## Configuração externa do Supabase Auth
+
+Para confirmação de e-mail e recuperação funcionarem no domínio de staging, o projeto Supabase deve autorizar o callback do Worker:
+
+- Site URL: `https://crapi-staging.soberania-24b.workers.dev`;
+- Redirect URL: `https://crapi-staging.soberania-24b.workers.dev/auth/callback`.
+
+Essa configuração fica no Dashboard do Supabase e não é controlada por migration SQL. Nenhum segredo precisa ser inserido nessa etapa.
+
 ## Primeiro OWNER
 
 O banco inicia sem OWNER. O primeiro proprietário é criado de forma controlada:
