@@ -40,19 +40,12 @@ function browserNotice(url: URL): string | null {
   return null;
 }
 
-async function enhanceAuthPage(
-  request: Request,
-  env: Env,
-  url: URL,
-): Promise<Response> {
+async function enhanceAuthPage(request: Request, env: Env, url: URL): Promise<Response> {
   const route = formRouteByPage[url.pathname];
   if (!route) return worker.fetch(request, env);
 
   const response = await worker.fetch(request, env);
-  if (
-    !response.ok ||
-    !(response.headers.get('content-type') ?? '').includes('text/html')
-  ) {
+  if (!response.ok || !(response.headers.get('content-type') ?? '').includes('text/html')) {
     return response;
   }
 
@@ -103,10 +96,7 @@ async function formToJsonRequest(request: Request): Promise<Request> {
   });
 }
 
-function nativeSuccessDestination(
-  pathname: string,
-  responseBody: unknown,
-): string {
+function nativeSuccessDestination(pathname: string, responseBody: unknown): string {
   if (pathname === '/auth/signup') {
     if (
       typeof responseBody === 'object' &&
@@ -125,11 +115,7 @@ function nativeSuccessDestination(
   return '/login';
 }
 
-async function handleNativeAuthPost(
-  request: Request,
-  env: Env,
-  url: URL,
-): Promise<Response> {
+async function handleNativeAuthPost(request: Request, env: Env, url: URL): Promise<Response> {
   const transformed = await formToJsonRequest(request);
   const response = await worker.fetch(transformed, env);
   const body = await response
@@ -162,8 +148,7 @@ const entry = {
       return enhanceAuthPage(request, env, url);
     }
 
-    const contentType =
-      request.headers.get('content-type')?.toLowerCase() ?? '';
+    const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
     if (
       request.method === 'POST' &&
       authPageByPath[url.pathname] &&
