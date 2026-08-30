@@ -1,4 +1,4 @@
-name: Quality gates
+name: Quality gates and staging deploy
 
 on:
   push:
@@ -11,7 +11,9 @@ permissions:
 
 jobs:
   quality:
+    name: Quality and security gates
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -32,3 +34,69 @@ jobs:
 
       - name: Security gates
         run: pnpm security
+
+  deploy-staging:
+    name: Deploy crapi-staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/foundation/m0-supabase'
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: crapi-staging
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.11.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build deployment dependencies
+        run: pnpm build
+
+      - name: Validate staging secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          API_KEY_PEPPER: ${{ secrets.API_KEY_PEPPER }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          missing=0
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID SUPABASE_SECRET_KEY API_KEY_PEPPER ADMIN_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required GitHub Actions secret: ${name}"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Deploy Worker and runtime secrets
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          packageManager: pnpm
+          command: deploy --config apps/worker/wrangler.jsonc
+          secrets: |
+            SUPABASE_SECRET_KEY
+            API_KEY_PEPPER
+            ADMIN_TOKEN
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          API_KEY_PEPPER: ${{ secrets.API_KEY_PEPPER }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+
+      - name: Publish staging URL
+        run: |
+          echo "### CrAPi staging" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.deploy.outputs.deployment-url }}" >> "$GITHUB_STEP_SUMMARY"
