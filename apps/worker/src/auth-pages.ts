@@ -10,46 +10,46 @@ function titleFor(mode: AuthPageMode): string {
 function formFor(mode: AuthPageMode): string {
   if (mode === 'signup') {
     return String.raw`
-      <form id="authForm">
+      <form id="authForm" onsubmit="return false">
         <label for="email">E-mail</label>
-        <input id="email" type="email" autocomplete="email" required placeholder="voce@empresa.com" />
+        <input id="email" name="email" type="email" autocomplete="email" required placeholder="voce@empresa.com" />
         <label for="password">Senha</label>
-        <input id="password" type="password" autocomplete="new-password" minlength="10" required placeholder="Mínimo de 10 caracteres" />
+        <input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required placeholder="Mínimo de 10 caracteres" />
         <label for="passwordConfirm">Confirme a senha</label>
-        <input id="passwordConfirm" type="password" autocomplete="new-password" minlength="10" required />
-        <button class="primary" type="submit">Criar conta</button>
+        <input id="passwordConfirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="10" required />
+        <button id="authSubmit" class="primary" type="button">Criar conta</button>
       </form>
       <p class="links">Já possui conta? <a href="/login">Entrar</a></p>`;
   }
 
   if (mode === 'recover') {
     return String.raw`
-      <form id="authForm">
+      <form id="authForm" onsubmit="return false">
         <label for="email">E-mail</label>
-        <input id="email" type="email" autocomplete="email" required placeholder="voce@empresa.com" />
-        <button class="primary" type="submit">Enviar recuperação</button>
+        <input id="email" name="email" type="email" autocomplete="email" required placeholder="voce@empresa.com" />
+        <button id="authSubmit" class="primary" type="button">Enviar recuperação</button>
       </form>
       <p class="links"><a href="/login">Voltar para o login</a></p>`;
   }
 
   if (mode === 'reset') {
     return String.raw`
-      <form id="authForm">
+      <form id="authForm" onsubmit="return false">
         <label for="password">Nova senha</label>
-        <input id="password" type="password" autocomplete="new-password" minlength="10" required placeholder="Mínimo de 10 caracteres" />
+        <input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required placeholder="Mínimo de 10 caracteres" />
         <label for="passwordConfirm">Confirme a nova senha</label>
-        <input id="passwordConfirm" type="password" autocomplete="new-password" minlength="10" required />
-        <button class="primary" type="submit">Salvar nova senha</button>
+        <input id="passwordConfirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="10" required />
+        <button id="authSubmit" class="primary" type="button">Salvar nova senha</button>
       </form>`;
   }
 
   return String.raw`
-    <form id="authForm">
+    <form id="authForm" onsubmit="return false">
       <label for="email">E-mail</label>
-      <input id="email" type="email" autocomplete="email" required placeholder="voce@empresa.com" />
+      <input id="email" name="email" type="email" autocomplete="email" required placeholder="voce@empresa.com" />
       <label for="password">Senha</label>
-      <input id="password" type="password" autocomplete="current-password" required />
-      <button class="primary" type="submit">Entrar</button>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+      <button id="authSubmit" class="primary" type="button">Entrar</button>
     </form>
     <div class="links split"><a href="/criar-conta">Criar conta</a><a href="/recuperar-senha">Esqueci minha senha</a></div>`;
 }
@@ -104,6 +104,7 @@ export function renderAuthPage(mode: AuthPageMode): string {
   <section class="card">
     <div id="notice"></div>
     ${form}
+    <noscript><p class="links">O JavaScript precisa estar habilitado para autenticar nesta versão do Control Plane.</p></noscript>
   </section>
 </main>
 <script>
@@ -112,32 +113,42 @@ export function renderAuthPage(mode: AuthPageMode): string {
   const endpoint = ${JSON.stringify(endpoint)};
   const form = document.getElementById('authForm');
   const notice = document.getElementById('notice');
-  const button = form.querySelector('button[type="submit"]');
+  const button = document.getElementById('authSubmit');
+  let submitting = false;
 
   function show(message) {
     notice.textContent = message;
     notice.style.display = 'block';
   }
 
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
+  async function submitAuth() {
+    if (submitting) return;
     notice.style.display = 'none';
+
+    if (!form.reportValidity()) return;
+
     const payload = {};
     const email = document.getElementById('email');
     const password = document.getElementById('password');
     const passwordConfirm = document.getElementById('passwordConfirm');
     if (email) payload.email = email.value;
     if (password) payload.password = password.value;
-    if (passwordConfirm && password.value !== passwordConfirm.value) {
+    if (passwordConfirm && password && password.value !== passwordConfirm.value) {
       show('As senhas não coincidem.');
       return;
     }
 
+    submitting = true;
     button.disabled = true;
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/json'
+        },
         body: JSON.stringify(payload)
       });
       const body = await response.json().catch(() => ({}));
@@ -161,7 +172,16 @@ export function renderAuthPage(mode: AuthPageMode): string {
     } catch (error) {
       show(error instanceof Error ? error.message : 'Não foi possível concluir a solicitação.');
     } finally {
+      submitting = false;
       button.disabled = false;
+    }
+  }
+
+  button.addEventListener('click', submitAuth);
+  form.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void submitAuth();
     }
   });
 })();
