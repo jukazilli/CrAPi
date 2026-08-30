@@ -113,7 +113,11 @@ function nativeSuccessDestination(pathname: string, responseBody: unknown): stri
   return '/login';
 }
 
-async function handleNativeAuthPost(request: Request, env: Env, url: URL): Promise<Response> {
+async function handleNativeAuthPost(
+  request: Request,
+  env: Env,
+  url: URL,
+): Promise<Response> {
   const transformed = await formToJsonRequest(request);
   const response = await worker.fetch(transformed, env);
   const body = await response.clone().json().catch(() => null);
@@ -121,7 +125,9 @@ async function handleNativeAuthPost(request: Request, env: Env, url: URL): Promi
   if (response.ok) {
     const redirected = redirect(nativeSuccessDestination(url.pathname, body));
     const headers = new Headers(redirected.headers);
-    for (const cookie of response.headers.getSetCookie?.() ?? []) headers.append('set-cookie', cookie);
+    for (const cookie of response.headers.getSetCookie?.() ?? []) {
+      headers.append('set-cookie', cookie);
+    }
     return new Response(null, { status: 303, headers });
   }
 
