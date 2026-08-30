@@ -1,7 +1,7 @@
 # Professional Registry — Briefing de Produto e Escopo do Beta
 
-Status: Canônico v0.3  
-Data: 2026-08-29
+Status: Canônico v0.4  
+Data: 2026-08-30
 
 ## 1. Resumo executivo
 
@@ -66,23 +66,25 @@ A frequência é configurável por provider. A fundação aceita **sincronizaç�
 
 ## 5. Infraestrutura da fundação
 
-- **Cloudflare Workers** para Data Plane e rotas administrativas.
-- **Supabase PostgreSQL** como Registry Store, histórico, sync e auditoria.
+- **Cloudflare Workers** para Data Plane, sessão server-side e rotas administrativas.
+- **Supabase Auth** para cadastro, login, confirmação, recuperação e identidade humana.
+- **Supabase PostgreSQL** como Registry Store, memberships administrativas, histórico, sync e auditoria.
 - **Supabase Data API/PostgREST sobre HTTPS** como caminho inicial Worker -> banco.
 - **Static Assets/SPA** para o console.
-- **Cloudflare Access** como autenticação administrativa inicial.
 - **GitHub** para versionamento, PRs e CI/CD.
 - secrets somente nos secret stores dos provedores.
+- Cloudflare Access permanece opção de perímetro adicional para produção, não o login primário do produto.
 
 O Supabase é infraestrutura **exclusiva do CrAPi**. Nenhum consumidor recebe acesso direto ao banco.
 
 ### 5.1 Credenciais Supabase
 
 - `SUPABASE_URL` é configuração de ambiente.
+- `SUPABASE_PUBLISHABLE_KEY` é configuração pública usada apenas para Supabase Auth.
 - `SUPABASE_SECRET_KEY` é segredo exclusivo de runtime server-side.
 - A credencial privilegiada do Supabase nunca é entregue a Daygym, Stude.ai, browser ou mobile.
 - Consumidores recebem somente API Keys do CrAPi (`prk_test_*` / `prk_live_*`).
-- Tabelas operacionais têm RLS habilitado e não possuem acesso `anon`/`authenticated` na fundação.
+- Tabelas operacionais e `admin_memberships` têm RLS habilitado e não possuem acesso `anon`/`authenticated`.
 
 ## 6. Contrato conceitual
 
@@ -159,19 +161,39 @@ Ausência de resultado ou ausência em uma sincronização **não prova inativid
 
 ## 8. Usuários e atores
 
-### Operador/administrador
-Administra aplicações, chaves, registries, syncs, providers, limites, segurança e investigação.
+### Owner/administrador
+Possui conta humana autenticada pelo Supabase Auth e membership ativa no CrAPi. Administra aplicações, chaves, registries, syncs, providers, limites, segurança e investigação.
+
+### Conta autenticada sem autorização
+Pode ter identidade válida no Supabase Auth, mas não acessa o Control Plane até receber membership administrativa. Login nunca concede Registry API.
 
 ### Desenvolvedor integrador
 Recebe uma chave do CrAPi e integra o backend da aplicação cliente.
 
 ### Aplicação cliente
-Backend do Daygym, Stude.ai ou sistema futuro autorizado.
+Backend do Daygym, Stude.ai ou sistema futuro explicitamente autorizado.
 
 ### Profissional verificado
 É objeto da consulta, mas não utiliza diretamente o console no beta.
 
-## 9. Escopo do beta
+## 9. Autenticação e autorização humana
+
+A autenticação e a autorização são independentes:
+
+```text
+conta -> Supabase Auth -> sessão válida -> admin_memberships -> OWNER/ADMIN ACTIVE -> Control Plane
+```
+
+Regras:
+- cadastro, login, confirmação e recuperação pertencem ao Supabase Auth;
+- sessão é mantida pelo Worker em cookies `HttpOnly`, `Secure`, `SameSite=Strict`;
+- tokens são revalidados server-side;
+- usuário sem membership recebe acesso negado;
+- o primeiro OWNER é ativado uma única vez com sessão válida + credencial de bootstrap/break-glass;
+- JWT humano não substitui API Key de aplicação;
+- `ADMIN_TOKEN` não é login normal do produto.
+
+## 10. Escopo do beta
 
 ### API
 - `POST /v1/professional-registrations/verify`;
@@ -182,6 +204,24 @@ Backend do Daygym, Stude.ai ou sistema futuro autorizado.
 - Freshness Policy e on-demand refresh;
 - single-flight/coalescing;
 - request IDs e erros versionados.
+
+### Auth / Control Plane
+- criar conta;
+- login;
+- confirmação de e-mail;
+- recuperação e redefinição de senha;
+- refresh/logout de sessão;
+- authorization por `admin_memberships`;
+- primeiro OWNER com bootstrap controlado;
+- Overview;
+- Applications;
+- API Keys;
+- Requests;
+- Registries;
+- Providers;
+- Sync;
+- Security;
+- Settings operacional mínima.
 
 ### Registry Store
 - snapshot canônico;
@@ -207,17 +247,6 @@ Backend do Daygym, Stude.ai ou sistema futuro autorizado.
 - métricas `processed/new/changed/unchanged/errors`;
 - retomada segura e jobs distribuídos no tempo.
 
-### Console administrativo
-- Overview;
-- Applications;
-- API Keys;
-- Requests;
-- Registries;
-- Providers;
-- Sync;
-- Security;
-- Settings operacional mínima.
-
 ### API Keys
 - geração criptograficamente segura;
 - exibição somente uma vez;
@@ -234,7 +263,7 @@ Backend do Daygym, Stude.ai ou sistema futuro autorizado.
 - 401/403/429 e security events;
 - consumo frente aos limites internos e ao plano do provedor.
 
-## 10. Fora do beta
+## 11. Fora do beta
 
 - billing e clientes externos self-service;
 - CRM real;
@@ -246,7 +275,7 @@ Backend do Daygym, Stude.ai ou sistema futuro autorizado.
 - enumeração cega de registros;
 - HTML bruto sem política de retenção.
 
-## 11. Segurança funcional
+## 12. Segurança funcional
 
 - TLS obrigatório.
 - API Key do CrAPi jamais em query string.
@@ -255,10 +284,13 @@ Backend do Daygym, Stude.ai ou sistema futuro autorizado.
 - Chaves diferentes por aplicação e ambiente.
 - `Authorization`, cookies e secrets são redigidos nos logs.
 - Admin e Data Plane têm autenticação separada.
-- Payloads não recebem criptografia adicional na V1 sem threat model específico; HTTPS/TLS é obrigatório.
-- Segredo Supabase é separado da API Key do consumidor.
+- JWT humano não autentica a Registry API.
+- Conta autenticada não é automaticamente autorizada.
+- sessão de browser em cookies `HttpOnly`, `Secure`, `SameSite=Strict`.
+- mutações administrativas são same-origin e auditadas.
+- segredo Supabase é separado da publishable key, sessão humana e API Key do consumidor.
 
-## 12. Regras de sincronização
+## 13. Regras de sincronização
 
 - Ausência em sync não executa `DELETE` físico.
 - Ausência em sync não vira automaticamente `INACTIVE`/`CANCELLED`.
@@ -268,23 +300,26 @@ Backend do Daygym, Stude.ai ou sistema futuro autorizado.
 - Full scan somente quando a fonte expõe mecanismo apropriado.
 - Freshness e frequência são configuração por provider.
 
-## 13. Critério de sucesso do beta
+## 14. Critério de sucesso do beta
 
-O beta está pronto quando uma aplicação consegue:
+O beta está pronto quando:
 
-1. ser cadastrada no console;
-2. receber uma API Key;
-3. chamar a API pelo backend;
-4. consultar CREF pelo Registry Store;
-5. receber freshness e resposta normalizada;
-6. disparar refresh sob demanda;
-7. visualizar uso, registries e syncs;
-8. rotacionar/revogar a chave;
-9. sofrer rate limiting quando aplicável;
-10. receber resposta segura quando upstream falha;
-11. auditar origem e atualização do registro;
-12. operar sem expor credenciais Supabase aos consumidores.
+1. um operador autorizado consegue criar/confirmar conta e entrar no Control Plane;
+2. conta não autorizada permanece bloqueada;
+3. o OWNER consegue cadastrar uma aplicação;
+4. a aplicação recebe uma API Key;
+5. o backend consumidor chama a Registry API;
+6. a API consulta CREF pelo Registry Store;
+7. freshness e resposta normalizada são retornadas;
+8. refresh sob demanda funciona;
+9. uso, registries e syncs são observáveis;
+10. chave pode ser rotacionada/revogada;
+11. rate limiting é aplicado quando necessário;
+12. upstream indisponível gera resposta conservadora;
+13. origem e atualização do registro são auditáveis;
+14. nenhuma credencial privilegiada do Supabase chega ao consumidor;
+15. JWT humano não serve como chave da Registry API.
 
-## 14. North Star
+## 15. North Star
 
 > Uma aplicação autorizada deve conseguir verificar um profissional sem conhecer detalhes técnicos do conselho e sem introduzir credenciais ou lógica de scraping no próprio produto.
