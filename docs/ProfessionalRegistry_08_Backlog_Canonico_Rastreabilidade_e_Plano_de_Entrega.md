@@ -62,7 +62,7 @@ Objetivo: integração real com primeiro consumidor, staging/production, observa
 | PR-M1-004 | In Progress | Scope `registry:verify` aplicado na rota real; prova com API Key emitida no staging ainda pendente. |
 | PR-M1-005 | In Progress | Quota diária implementada para o checkpoint; reserva atômica sob concorrência será endurecida antes do beta. |
 | PR-M1-006 | In Progress | Control Plane publicado com sessão Supabase Auth + `admin_memberships`; bootstrap manual do primeiro OWNER e ciclo administrativo autenticado ainda precisam de aceite. |
-| PR-M1-007 | In Progress | Cadastro, login, confirmação/callback, recuperação, redefinição e refresh de sessão implementados; smoke hospedado cobre superfícies públicas e proteção sem sessão, enquanto o E2E de e-mail depende da URL de Auth configurada no Supabase. |
+| PR-M1-007 | In Progress | Cadastro, login, confirmação/callback, recuperação, redefinição e refresh de sessão implementados; falta configurar a Site URL/Redirect URL do Auth no Dashboard e executar o E2E real de e-mail + primeiro OWNER. |
 | PR-M2-001 | In Progress | Slice database-first implementado: Registry Store hit retorna snapshot; miss retorna `INCONCLUSIVE` até on-demand refresh/provider. |
 
 ### Modelo de autenticação e autorização
@@ -84,6 +84,11 @@ Consequências obrigatórias:
 ### Checkpoint mínimo publicado
 
 Staging: `https://crapi-staging.soberania-24b.workers.dev`
+
+Antes do E2E de e-mail, configurar no Supabase Auth:
+
+- Site URL: `https://crapi-staging.soberania-24b.workers.dev`;
+- Redirect URL: `https://crapi-staging.soberania-24b.workers.dev/auth/callback`.
 
 Fluxo humano planejado para o aceite:
 
