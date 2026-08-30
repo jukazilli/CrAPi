@@ -1,62 +1,47 @@
-# Professional Registry — Índice Canônico de Documentação
+# Professional Registry — Índice de Documentação
 
-Status: Fundação v0.1  
-Data: 2026-08-29
+Status: Canônico v0.2  
+Data: 2026-08-30
 
-## Objetivo
+## Documentos principais
 
-Este diretório é a fonte canônica de produto, UX, engenharia, segurança e entrega do **Professional Registry**, uma aplicação independente destinada à verificação de registros em conselhos profissionais brasileiros.
+1. `ProfessionalRegistry_01_Pesquisa_e_Viabilidade.md` — pesquisa, fontes, limitações e viabilidade.
+2. `ProfessionalRegistry_02_Briefing_de_Produto_e_Escopo_do_Beta.md` — produto, escopo, atores, Auth e critérios do beta.
+3. `ProfessionalRegistry_03_Visao_de_Product_Owner.md` — direção de produto e prioridades.
+4. `ProfessionalRegistry_04_Direcao_de_UI_e_Design_System.md` — linguagem visual e sistema de interface.
+5. `ProfessionalRegistry_05_Especificacao_de_UX.md` — jornadas, estados e experiência operacional.
+6. `ProfessionalRegistry_06_Tecnicas_de_Desenvolvimento_e_Engenharia_com_IA.md` — práticas de desenvolvimento e colaboração com IA.
+7. `ProfessionalRegistry_07_Arquitetura_e_Engenharia.md` — arquitetura Database-first, Supabase Auth, memberships, Data Plane e Sync Engine.
+8. `ProfessionalRegistry_08_Backlog_Canonico_Rastreabilidade_e_Plano_de_Entrega.md` — requisitos, backlog e evidências.
+9. `ProfessionalRegistry_08_Matriz_de_Rastreabilidade_e_Backlog.xlsx` — matriz detalhada; sincronização com o backlog Markdown deve ser mantida explicitamente.
+10. `Principios_de_UX_UI.md` — princípios transversais de UX/UI.
 
-A solução nasce para atender Daygym e Stude.ai, mas **não pertence a nenhum dos dois ecossistemas**. Possui repositório, banco, infraestrutura, credenciais, observabilidade, ciclo de deploy e governança próprios.
+## Documentos técnicos de apoio
 
-## Ordem obrigatória de leitura
+- `security/environment-contract.md` — contrato de ambientes, configuração pública, secrets, identidade humana e credenciais de aplicações.
+- `governance/m0-foundation.md` — registro histórico da fundação M0.
+- `AGENTS.md` — regras operacionais para alterações por agentes/IA.
 
-Agentes de IA, desenvolvedores e revisores devem consultar os documentos nesta ordem:
+## Decisões vigentes
 
-1. `ProfessionalRegistry_01_Pesquisa_e_Viabilidade.md`
-2. `ProfessionalRegistry_02_Briefing_de_Produto_e_Escopo_do_Beta.md`
-3. `ProfessionalRegistry_03_Visao_de_Product_Owner.md`
-4. `Principios_de_UX_UI.md`
-5. `ProfessionalRegistry_04_Direcao_de_UI_e_Design_System.md`
-6. `ProfessionalRegistry_05_Especificacao_de_UX.md`
-7. `ProfessionalRegistry_06_Tecnicas_de_Desenvolvimento_e_Engenharia_com_IA.md`
-8. `ProfessionalRegistry_07_Arquitetura_e_Engenharia.md`
-9. `ProfessionalRegistry_08_Backlog_Canonico_Rastreabilidade_e_Plano_de_Entrega.md`
-10. `ProfessionalRegistry_09_Seguranca_Threat_Model_e_Gestao_de_Chaves.md`
-11. `ProfessionalRegistry_10_Operacao_Observabilidade_Custos_e_Runbook.md`
-12. `ProfessionalRegistry_11_Sincronizacao_Aquisicao_e_Freshness_de_Dados.md`
+- CrAPi é independente de DayGym e Stude.ai.
+- Fonte operacional: Registry Store próprio em Supabase PostgreSQL.
+- Aquisição: Database-first + Scheduled Synchronization + On-demand Refresh.
+- Identidade humana: Supabase Auth.
+- Autorização administrativa: `admin_memberships` com OWNER/ADMIN.
+- Autenticação de aplicações: API Keys próprias `prk_test_*` / `prk_live_*`.
+- Login humano nunca substitui API Key do Data Plane.
+- Cloudflare Workers executam Data Plane e Control Plane server-side.
+- Cloudflare Access pode ser perímetro adicional em produção, mas não é o login primário.
 
-A arquitetura de dados adota como padrão **Database-first + Scheduled Synchronization + On-demand Refresh**. A fonte operacional consultada pelos apps é o banco próprio do Professional Registry; fontes oficiais são acessadas pelo Sync Engine e pelo refresh sob demanda.
+## Regra de atualização
 
-A matriz tabular correspondente fica em:
+Mudança arquitetural ou de segurança deve atualizar no mesmo trabalho, quando aplicável:
+- briefing;
+- arquitetura;
+- backlog canônico;
+- environment contract;
+- README;
+- evidência do PR.
 
-- `ProfessionalRegistry_08_Matriz_de_Rastreabilidade_e_Backlog.xlsx`
-
-## Regra de precedência
-
-Quando houver conflito:
-
-1. segurança e privacidade;
-2. briefing/escopo aprovado;
-3. visão de PO;
-4. arquitetura;
-5. UX/UI;
-6. backlog;
-7. implementação existente.
-
-Código existente **não transforma comportamento acidental em requisito**.
-
-## Fonte de verdade para IA
-
-O arquivo raiz `AGENTS.md` traduz estes documentos em instruções executáveis para agentes de código. Nenhum agente deve iniciar implementação sem identificar o item de backlog, os requisitos afetados e os testes esperados.
-
-## Decisões arquiteturais e contratos operacionais
-
-Complementam a documentação canônica:
-
-- `adr/ADR-0001_Cloudflare_Workers_D1_Free_First.md` — histórico da decisão inicial; banco superseded.
-- `adr/ADR-0002_Database_First_Scheduled_Sync_On_Demand_Refresh.md` — estratégia de aquisição e freshness.
-- `adr/ADR-0003_Supabase_Postgres_as_Registry_Store.md` — banco vigente.
-- `security/environment-contract.md` — contrato de configurações e segredos.
-- `api/v1-contract.md` — contrato HTTP da V1.
-- `governance/m0-foundation.md` — estado e gates da fundação M0.
+A matriz XLSX não deve ser considerada atualizada automaticamente a partir do Markdown.
