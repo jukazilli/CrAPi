@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+  <body style="margin: 0; background: #f5f5f5; font-family: Arial, Helvetica, sans-serif; color: #151515">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding: 32px 16px">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 560px; background: #ffffff; border-radius: 16px; padding: 32px">
+            <tr>
+              <td>
+                <p style="margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase">Soberania Tech</p>
+                <h1 style="margin: 0 0 16px; font-size: 26px; line-height: 1.25">Seu acesso à CrAPi</h1>
+                <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6">Use o botão abaixo para concluir o acesso com segurança.</p>
+                <p style="margin: 0 0 24px">
+                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink&next=/admin" style="display: inline-block; padding: 13px 20px; border-radius: 10px; background: #151515; color: #ffffff; text-decoration: none; font-weight: 700">Acessar CrAPi</a>
+                </p>
+                <p style="margin: 0; color: #666666; font-size: 13px; line-height: 1.5">Este link é de uso único. Se você não solicitou acesso, ignore esta mensagem.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
