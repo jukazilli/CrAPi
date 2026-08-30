@@ -1,6 +1,6 @@
 param(
   [string]$ProjectRef = "nxwqlxrdgpepscwjprym",
-  [string]$SenderEmail = $(if ($env:SOBERANIA_AUTH_FROM) { $env:SOBERANIA_AUTH_FROM } else { "crapi@auth.soberania.tech" }),
+  [string]$SenderEmail = $(if ($env:SOBERANIA_AUTH_FROM) { $env:SOBERANIA_AUTH_FROM } else { "no-reply@soberania.tech" }),
   [string]$SenderName = "CrAPi | Soberania Tech"
 )
 
