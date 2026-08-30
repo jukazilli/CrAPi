@@ -12,8 +12,8 @@ Data: 2026-08-30
 5. `ProfessionalRegistry_05_Especificacao_de_UX.md` — jornadas, estados e experiência operacional.
 6. `ProfessionalRegistry_06_Tecnicas_de_Desenvolvimento_e_Engenharia_com_IA.md` — práticas de desenvolvimento e colaboração com IA.
 7. `ProfessionalRegistry_07_Arquitetura_e_Engenharia.md` — arquitetura Database-first, Supabase Auth, memberships, Data Plane e Sync Engine.
-8. `ProfessionalRegistry_08_Backlog_Canonico_Rastreabilidade_e_Plano_de_Entrega.md` — requisitos, backlog e evidências.
-9. `ProfessionalRegistry_08_Matriz_de_Rastreabilidade_e_Backlog.xlsx` — matriz detalhada; sincronização com o backlog Markdown deve ser mantida explicitamente.
+8. `ProfessionalRegistry_08_Backlog_Canonico_Rastreabilidade_e_Plano_de_Entrega.md` — requisitos, backlog e evidências; fonte canônica atual do status de execução.
+9. `ProfessionalRegistry_08_Matriz_de_Rastreabilidade_e_Backlog.xlsx` — matriz detalhada criada anteriormente; requer sincronização explícita para refletir mudanças mais recentes do backlog Markdown.
 10. `Principios_de_UX_UI.md` — princípios transversais de UX/UI.
 
 ## Documentos técnicos de apoio
