@@ -30,11 +30,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Quality gates
-        run: |
-          pnpm exec prettier apps/worker/src/entry.ts
-          echo '---POSTMAN---'
-          pnpm exec prettier tools/postman/CrAPi-Staging-Auth-Debug.postman_collection.json
-          exit 1
+        run: pnpm check:ci
 
       - name: Security gates
         run: pnpm security
@@ -141,6 +137,11 @@ jobs:
           assert_http '/admin' '303'
           assert_http '/admin/api/applications' '401'
           assert_http '/auth/signup' '303'
+          assert_http '/debug/auth/settings' '200'
+
+          echo 'Auth settings diagnostic:'
+          curl --silent --show-error --fail "$DEPLOYMENT_URL/debug/auth/settings"
+          echo
 
           curl --silent --show-error --fail "$DEPLOYMENT_URL/criar-conta" > "$RUNNER_TEMP/signup-page.html"
           if ! grep -F 'method="post" action="/auth/signup"' "$RUNNER_TEMP/signup-page.html" >/dev/null; then
@@ -167,6 +168,19 @@ jobs:
           echo "/auth/signup native form invalid payload -> HTTP $native_signup_status"
           if [ "$native_signup_status" != '303' ]; then
             echo "::error::Native browser signup fallback returned HTTP $native_signup_status instead of 303."
+            exit 1
+          fi
+
+          upstream_probe_status="$(curl --silent --show-error --output "$RUNNER_TEMP/auth-upstream-probe.json" --write-out '%{http_code}' \
+            --request POST "$DEPLOYMENT_URL/auth/signup" \
+            --header 'content-type: application/json' \
+            --header 'x-request-id: ci-auth-upstream-probe' \
+            --data '{"email":"crapi-debug@example.invalid","password":"CrAPi-Debug-Only-123!"}')"
+          echo "/auth/signup upstream diagnostic probe -> HTTP $upstream_probe_status"
+          cat "$RUNNER_TEMP/auth-upstream-probe.json"
+          echo
+          if [ "$upstream_probe_status" != '400' ]; then
+            echo "::error::Auth upstream diagnostic probe returned HTTP $upstream_probe_status instead of 400."
             exit 1
           fi
 
