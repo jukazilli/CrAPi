@@ -4,5 +4,6 @@ coverage
 pnpm-lock.yaml
 docs/**
 supabase/**
+tools/postman/*.postman_collection.json
 AGENTS.md
 README.md
