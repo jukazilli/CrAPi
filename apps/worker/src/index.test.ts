@@ -34,7 +34,7 @@ describe('worker foundation', () => {
   it('reports ready when database, auth and API key security are configured', async () => {
     const response = await worker.fetch(new Request('https://crapi.test/ready'), {
       ...authEnv,
-      SUPABASE_SECRET_KEY: 'sb_secret_abcdefghijklmnopqrstuvwxyz',
+      SUPABASE_SECRET_KEY: 'server-secret-test-value-1234567890',
     });
 
     expect(response.status).toBe(200);
@@ -94,7 +94,7 @@ describe('worker foundation', () => {
       {
         APP_ENV: 'test',
         SUPABASE_URL: 'https://project.supabase.co',
-        SUPABASE_SECRET_KEY: 'sb_secret_abcdefghijklmnopqrstuvwxyz',
+        SUPABASE_SECRET_KEY: 'server-secret-test-value-1234567890',
         API_KEY_PEPPER: '0123456789abcdef0123456789abcdef',
       },
     );
