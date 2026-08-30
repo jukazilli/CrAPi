@@ -1,0 +1,52 @@
+{
+  "info": {
+    "name": "CrAPi Staging - Auth Debug",
+    "_postman_id": "4d1c6a17-27dd-4f79-8c32-6ca7d762f11a",
+    "description": "Coleção para isolar falhas de autenticação do CrAPi em staging.\n\nAntes de testar um cadastro real, preencha as variáveis `signupEmail` e `signupPassword` no nível da coleção. Não salve senha real em workspace compartilhado.\n\nO Worker devolve `x-crapi-request-id` e também `request_id` no JSON do cadastro. Esse ID permite correlacionar a tentativa com os eventos sanitizados gravados no banco.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key":"baseUrl","value":"https://crapi-staging.soberania-24b.workers.dev"},
+    {"key":"supabaseUrl","value":"https://nxwqlxrdgpepscwjprym.supabase.co"},
+    {"key":"supabasePublishableKey","value":"sb_publishable_C-Me5t0HhEktkRPfJuEjnA_Cgo1-EpV","description":"Chave publicável; não é segredo."},
+    {"key":"signupEmail","value":""},
+    {"key":"signupPassword","value":""},
+    {"key":"lastRequestId","value":""}
+  ],
+  "event": [{"listen":"test","script":{"type":"text/javascript","exec":["const rid = pm.response.headers.get('x-crapi-request-id');","if (rid) {","  pm.collectionVariables.set('lastRequestId', rid);","  console.log('CrAPi request_id:', rid);","}","let parsed = null;","try { parsed = pm.response.json(); } catch (_) {}","if (parsed) console.log('Response JSON:', parsed);"]}}],
+  "item": [
+    {
+      "name":"01 - Worker / Infra",
+      "item":[
+        {"name":"Health","request":{"method":"GET","url":{"raw":"{{baseUrl}}/health","host":["{{baseUrl}}"],"path":["health"]}},"event":[{"listen":"test","script":{"exec":["pm.test('HTTP 200', () => pm.response.to.have.status(200));","pm.test('service=crapi', () => pm.expect(pm.response.json().service).to.eql('crapi'));"]}}]},
+        {"name":"Ready","request":{"method":"GET","url":{"raw":"{{baseUrl}}/ready","host":["{{baseUrl}}"],"path":["ready"]}},"event":[{"listen":"test","script":{"exec":["pm.test('HTTP 200', () => pm.response.to.have.status(200));","console.log('Readiness:', pm.response.json());"]}}]},
+        {"name":"Auth Settings Diagnostic (staging only)","request":{"method":"GET","url":{"raw":"{{baseUrl}}/debug/auth/settings","host":["{{baseUrl}}"],"path":["debug","auth","settings"]}},"event":[{"listen":"test","script":{"exec":["pm.test('Diagnostic endpoint respondeu', () => pm.expect([200,503]).to.include(pm.response.code));","console.log('Auth settings:', pm.response.json());"]}}]},
+        {"name":"Signup Page","request":{"method":"GET","url":{"raw":"{{baseUrl}}/criar-conta","host":["{{baseUrl}}"],"path":["criar-conta"]}},"event":[{"listen":"test","script":{"exec":["pm.test('HTTP 200', () => pm.response.to.have.status(200));","pm.test('Fallback POST existe', () => pm.expect(pm.response.text()).to.include('method=\"post\" action=\"/auth/signup\"'));"]}}]}
+      ]
+    },
+    {
+      "name":"02 - Signup pelo CrAPi",
+      "item":[
+        {"name":"Probe local - email inválido (não cria usuário)","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\": \"invalid\", \"password\": \"DebugOnly123!\"}","options":{"raw":{"language":"json"}}},"url":{"raw":"{{baseUrl}}/auth/signup","host":["{{baseUrl}}"],"path":["auth","signup"]}},"event":[{"listen":"test","script":{"exec":["pm.test('Validação local retorna 400', () => pm.response.to.have.status(400));","pm.test('Tem request_id', () => pm.expect(pm.response.headers.get('x-crapi-request-id')).to.be.ok);"]}}]},
+        {"name":"Cadastro real - JSON","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"Accept","value":"application/json"},{"key":"X-Request-Id","value":"postman-json-{{$guid}}"}],"body":{"mode":"raw","raw":"{\n  \"email\": \"{{signupEmail}}\",\n  \"password\": \"{{signupPassword}}\"\n}","options":{"raw":{"language":"json"}}},"url":{"raw":"{{baseUrl}}/auth/signup","host":["{{baseUrl}}"],"path":["auth","signup"]}},"event":[{"listen":"prerequest","script":{"exec":["if (!pm.collectionVariables.get('signupEmail')) throw new Error('Preencha signupEmail nas variáveis da coleção.');","if (!pm.collectionVariables.get('signupPassword')) throw new Error('Preencha signupPassword nas variáveis da coleção.');"]}},{"listen":"test","script":{"exec":["pm.test('Resposta é diagnóstica', () => pm.expect([201,400,503]).to.include(pm.response.code));","const rid = pm.response.headers.get('x-crapi-request-id');","console.log('Guarde este request_id:', rid);","if (pm.response.code === 503) console.warn('Falha upstream:', pm.response.json());"]}}]},
+        {"name":"Cadastro real - Form URL Encoded","request":{"method":"POST","header":[{"key":"X-Request-Id","value":"postman-form-{{$guid}}"}],"body":{"mode":"urlencoded","urlencoded":[{"key":"email","value":"{{signupEmail}}","type":"text"},{"key":"password","value":"{{signupPassword}}","type":"text"}]},"url":{"raw":"{{baseUrl}}/auth/signup","host":["{{baseUrl}}"],"path":["auth","signup"]}},"event":[{"listen":"prerequest","script":{"exec":["if (!pm.collectionVariables.get('signupEmail')) throw new Error('Preencha signupEmail nas variáveis da coleção.');","if (!pm.collectionVariables.get('signupPassword')) throw new Error('Preencha signupPassword nas variáveis da coleção.');"]}},{"listen":"test","script":{"exec":["pm.test('Fallback responde', () => pm.expect([201,303,400,503]).to.include(pm.response.code));","console.log('Status fallback:', pm.response.code);"]}}]}
+      ]
+    },
+    {
+      "name":"03 - Login / Sessão",
+      "item":[
+        {"name":"Login","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"email\": \"{{signupEmail}}\",\n  \"password\": \"{{signupPassword}}\"\n}","options":{"raw":{"language":"json"}}},"url":{"raw":"{{baseUrl}}/auth/login","host":["{{baseUrl}}"],"path":["auth","login"]}}},
+        {"name":"Minha sessão","request":{"method":"GET","url":{"raw":"{{baseUrl}}/auth/me","host":["{{baseUrl}}"],"path":["auth","me"]}}},
+        {"name":"Admin","request":{"method":"GET","url":{"raw":"{{baseUrl}}/admin","host":["{{baseUrl}}"],"path":["admin"]}}}
+      ]
+    },
+    {
+      "name":"04 - Isolamento direto do Supabase",
+      "description":"Use somente para comparar CrAPi x Supabase. O request de signup direto pode criar um usuário e disparar e-mail.",
+      "item":[
+        {"name":"Supabase Auth Settings (direto)","request":{"method":"GET","header":[{"key":"apikey","value":"{{supabasePublishableKey}}"},{"key":"Accept","value":"application/json"}],"url":{"raw":"{{supabaseUrl}}/auth/v1/settings","host":["{{supabaseUrl}}"],"path":["auth","v1","settings"]}}},
+        {"name":"Supabase Signup (direto - cuidado: pode criar usuário)","request":{"method":"POST","header":[{"key":"apikey","value":"{{supabasePublishableKey}}"},{"key":"Content-Type","value":"application/json"},{"key":"Accept","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"email\": \"{{signupEmail}}\",\n  \"password\": \"{{signupPassword}}\"\n}","options":{"raw":{"language":"json"}}},"url":{"raw":"{{supabaseUrl}}/auth/v1/signup","host":["{{supabaseUrl}}"],"path":["auth","v1","signup"]}},"event":[{"listen":"test","script":{"exec":["console.log('Supabase status:', pm.response.code);","console.log('Supabase body:', pm.response.text());","console.log('x-sb-error-code:', pm.response.headers.get('x-sb-error-code')); "]}}]}
+      ]
+    }
+  ]
+}
