@@ -43,7 +43,7 @@ jobs:
       - name: Checkout reviewed Auth configuration
         uses: actions/checkout@v4
         with:
-          ref: 8f1603ef027b5596aa86711774e8a090fa0336a5
+          ref: 8cf71e131d8e4c565c631125da0cb79e7c43fcb2
           persist-credentials: false
 
       - name: Apply Resend SMTP and Auth templates
