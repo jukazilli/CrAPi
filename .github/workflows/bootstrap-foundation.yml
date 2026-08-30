@@ -136,15 +136,33 @@ jobs:
           assert_http '/recuperar-senha' '200'
           assert_http '/admin' '303'
           assert_http '/admin/api/applications' '401'
+          assert_http '/auth/signup' '303'
+
+          curl --silent --show-error --fail "$DEPLOYMENT_URL/criar-conta" > "$RUNNER_TEMP/signup-page.html"
+          if ! grep -F 'method="post" action="/auth/signup"' "$RUNNER_TEMP/signup-page.html" >/dev/null; then
+            echo '::error::Signup page does not expose the browser-native POST fallback.'
+            exit 1
+          fi
 
           signup_status="$(curl --silent --show-error --output "$RUNNER_TEMP/signup-response.json" --write-out '%{http_code}' \
             --request POST "$DEPLOYMENT_URL/auth/signup" \
             --header 'content-type: application/json' \
             --data '{"email":"invalid","password":"invalid"}')"
-          echo "/auth/signup POST invalid payload -> HTTP $signup_status"
+          echo "/auth/signup POST invalid JSON payload -> HTTP $signup_status"
           if [ "$signup_status" != '400' ]; then
             cat "$RUNNER_TEMP/signup-response.json"
             echo "::error::POST /auth/signup returned HTTP $signup_status instead of 400."
+            exit 1
+          fi
+
+          native_signup_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --request POST "$DEPLOYMENT_URL/auth/signup" \
+            --header 'content-type: application/x-www-form-urlencoded' \
+            --data-urlencode 'email=invalid' \
+            --data-urlencode 'password=invalid')"
+          echo "/auth/signup native form invalid payload -> HTTP $native_signup_status"
+          if [ "$native_signup_status" != '303' ]; then
+            echo "::error::Native browser signup fallback returned HTTP $native_signup_status instead of 303."
             exit 1
           fi
 
